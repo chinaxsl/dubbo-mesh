@@ -27,12 +27,10 @@ import java.util.concurrent.*;
 public class HelloController {
 
     private Logger logger = LoggerFactory.getLogger(HelloController.class);
-    
     private IRegistry registry = new EtcdRegistry(System.getProperty("etcd.url"));
     private RpcClient rpcClient = new RpcClient(registry);
     private List<Endpoint> endpoints = null;
     private Object lock = new Object();
-//    private OkHttpClient httpClient = new OkHttpClient();
     private AsyncHttpClient asyncHttpClient = Dsl.asyncHttpClient();
     private HashMap<Endpoint,String> urlMap = new HashMap<>();
     private Executor executor = Executors.newFixedThreadPool(256);
@@ -92,13 +90,8 @@ public class HelloController {
             }
         }
 
-        // 简单的负载均衡，随机取一个
-        Endpoint endpoint = LoadBalanceChoice.roundChoice(endpoints);
-
-//        String url =  "http://" + endpoint.getHost() + ":" + endpoint.getPort();
         DeferredResult<Object> result = new DeferredResult<>();
-
-        org.asynchttpclient.Request request = Dsl.post(urlMap.get(endpoint))
+        org.asynchttpclient.Request request = Dsl.post(urlMap.get(LoadBalanceChoice.roundChoice(endpoints)))
                 .addFormParam("interface",interfaceName)
                 .addFormParam("method",method)
                 .addFormParam("parameterTypesString",parameterTypesString)
