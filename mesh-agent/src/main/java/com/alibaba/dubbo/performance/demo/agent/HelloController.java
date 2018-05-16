@@ -6,18 +6,22 @@ import com.alibaba.dubbo.performance.demo.agent.registry.EtcdRegistry;
 import com.alibaba.dubbo.performance.demo.agent.registry.IRegistry;
 import com.alibaba.dubbo.performance.demo.agent.registry.LoadBalanceChoice;
 import okhttp3.*;
+import okhttp3.Request;
+import org.asynchttpclient.*;
+import org.asynchttpclient.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 import org.springframework.web.context.request.async.WebAsyncTask;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import java.util.concurrent.*;
 
 @RestController
 public class HelloController {
@@ -28,9 +32,10 @@ public class HelloController {
     private RpcClient rpcClient = new RpcClient(registry);
     private List<Endpoint> endpoints = null;
     private Object lock = new Object();
-    private OkHttpClient httpClient = new OkHttpClient();
+//    private OkHttpClient httpClient = new OkHttpClient();
+    private AsyncHttpClient asyncHttpClient = Dsl.asyncHttpClient();
     private HashMap<Endpoint,String> urlMap = new HashMap<>();
-
+    private Executor executor = Executors.newFixedThreadPool(256);
 //    @RequestMapping(value = "")
 //    public Object invoke(@RequestParam("interface") String interfaceName,
 //                               @RequestParam("method") String method,
@@ -46,29 +51,36 @@ public class HelloController {
 //        }
 //    }
     @RequestMapping(value = "")
-    public WebAsyncTask<Object> invoke(@RequestParam("interface") String interfaceName,
+    public DeferredResult<Object> invoke(@RequestParam("interface") String interfaceName,
                                        @RequestParam("method") String method,
                                        @RequestParam("parameterTypesString") String parameterTypesString,
-                                       @RequestParam("parameter") String parameter) {
-        Callable<Object> callable = ()-> {
-            String type = System.getProperty("type");
-            if ("consumer".equals(type)) {
-                consumer(interfaceName, method, parameterTypesString, parameter);
-            } else if ("provider".equals(type)) {
-                provider(interfaceName, method, parameterTypesString, parameter);
-            }
-            return "error";
-        };
-        return new WebAsyncTask<Object>(callable);
+                                       @RequestParam("parameter") String parameter) throws Exception {
+        return consumer(interfaceName, method, parameterTypesString, parameter);
+    }
+
+    @RequestMapping(value = "provider")
+    public Object invoke1(@RequestParam("interface") String interfaceName,
+                          @RequestParam("method") String method,
+                          @RequestParam("parameterTypesString") String parameterTypesString,
+                          @RequestParam("parameter") String parameter) throws Exception {
+        return provider(interfaceName, method, parameterTypesString, parameter);
     }
     public byte[] provider(String interfaceName,String method,String parameterTypesString,String parameter) throws Exception {
-
-        Object result = rpcClient.invoke(interfaceName,method,parameterTypesString,parameter);
-        return (byte[]) result;
+//        DeferredResult<Object> result = new DeferredResult<>();
+//        Runnable callable = () -> {
+//            try {
+//                Object value = rpcClient.invoke(interfaceName,method,parameterTypesString,parameter);
+//                result.setResult(value);
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        };
+//        new Thread(callable).start();
+        byte[] result = (byte[]) rpcClient.invoke(interfaceName, method, parameterTypesString, parameter);
+        return result;
     }
 
-    public Integer consumer(String interfaceName,String method,String parameterTypesString,String parameter) throws Exception {
-
+    public DeferredResult<Object> consumer(String interfaceName,String method,String parameterTypesString,String parameter) throws Exception {
         if (null == endpoints){
             synchronized (lock){
                 if (null == endpoints){
@@ -76,7 +88,7 @@ public class HelloController {
                 }
             }
             for (Endpoint endpoint : endpoints) {
-                urlMap.put(endpoint,"http://" + endpoint.getHost() + ":" + endpoint.getPort());
+                urlMap.put(endpoint,"http://" + endpoint.getHost() + ":" + endpoint.getPort() + "/provider");
             }
         }
 
@@ -84,24 +96,24 @@ public class HelloController {
         Endpoint endpoint = LoadBalanceChoice.roundChoice(endpoints);
 
 //        String url =  "http://" + endpoint.getHost() + ":" + endpoint.getPort();
+        DeferredResult<Object> result = new DeferredResult<>();
 
-        RequestBody requestBody = new FormBody.Builder()
-                .add("interface",interfaceName)
-                .add("method",method)
-                .add("parameterTypesString",parameterTypesString)
-                .add("parameter",parameter)
+        org.asynchttpclient.Request request = Dsl.post(urlMap.get(endpoint))
+                .addFormParam("interface",interfaceName)
+                .addFormParam("method",method)
+                .addFormParam("parameterTypesString",parameterTypesString)
+                .addFormParam("parameter",parameter)
                 .build();
-
-        Request request = new Request.Builder()
-                .url(urlMap.get(endpoint))
-                .post(requestBody)
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-            byte[] bytes = response.body().bytes();
-            String s = new String(bytes);
-            return Integer.valueOf(s);
-        }
+        ListenableFuture<Response> responseListenableFuture = asyncHttpClient.executeRequest(request);
+        Runnable callback = () -> {
+            try {
+                String responseBody = responseListenableFuture.get().getResponseBody();
+                result.setResult(Integer.parseInt(responseBody));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        };
+        responseListenableFuture.addListener(callback,executor);
+        return result;
     }
 }
