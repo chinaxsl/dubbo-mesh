@@ -17,7 +17,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
 public class RpcClient {
-    private Logger logger = LoggerFactory.getLogger(RpcClient.class);
+//    private Logger logger = LoggerFactory.getLogger(RpcClient.class);
 
     private ConnecManager connectManager;
 
@@ -26,9 +26,7 @@ public class RpcClient {
     }
 
     public Object invoke(String interfaceName, String method, String parameterTypesString, String parameter) throws Exception {
-
         Channel channel = connectManager.getChannel();
-
         RpcInvocation invocation = new RpcInvocation();
         invocation.setMethodName(method);
         invocation.setAttachment("path", interfaceName);
@@ -44,19 +42,19 @@ public class RpcClient {
         request.setTwoWay(true);
         request.setData(invocation);
 
-        logger.info("requestId=" + request.getId());
+//        logger.info("requestId=" + request.getId());
 
         RpcFuture future = new RpcFuture();
         RpcRequestHolder.put(String.valueOf(request.getId()),future);
 
         channel.writeAndFlush(request);
 
-        Object result = null;
-        try {
-            result = future.get();
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        return result;
+//        Object result = null;
+//        try {
+//            result = future.get();
+//        }catch (Exception e){
+//            e.printStackTrace();
+//        }
+        return future;
     }
 }

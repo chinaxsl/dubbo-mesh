@@ -41,6 +41,7 @@ public class EtcdRegistry implements IRegistry{
         String type = System.getProperty("type");   // 获取type参数
         if ("provider".equals(type)){
             // 如果是provider，去etcd注册服务
+            logger.info("provider 进入");
             try {
                 int port = Integer.valueOf(System.getProperty("server.port"));
                 register("com.alibaba.dubbo.performance.demo.provider.IHelloService",port);
