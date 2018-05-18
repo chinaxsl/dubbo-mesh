@@ -22,8 +22,6 @@ public class LoadBalanceChoice {
     }
 
     public static Endpoint roundChoice(List<Endpoint> endpoints) {
-        if (!endpoints.isEmpty())
-            return endpoints.get((pos++) % endpoints.size());
-        return null;
+        return endpoints.get((pos++) % endpoints.size());
     }
 }

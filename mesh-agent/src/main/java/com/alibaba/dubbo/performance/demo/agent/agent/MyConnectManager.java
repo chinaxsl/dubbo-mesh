@@ -2,21 +2,20 @@ package com.alibaba.dubbo.performance.demo.agent.agent;/**
  * Created by msi- on 2018/5/17.
  */
 
-import com.alibaba.dubbo.performance.demo.agent.dubbo.ConnecManager;
-import com.alibaba.dubbo.performance.demo.agent.dubbo.RpcClientInitializer;
+import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
+import com.alibaba.dubbo.performance.demo.agent.agent.serialize.*;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @program: dubbo-mesh
@@ -57,7 +56,7 @@ public class MyConnectManager {
                 .option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
                 .channel(NioSocketChannel.class)
-                .handler(new ClientChannelInitializer());
+                .handler(new NettyClientInitializer());
     }
     public Channel getChannel(Endpoint endpoint) throws Exception {
         if (!channelMap.containsKey(endpoint)) {
@@ -69,5 +68,27 @@ public class MyConnectManager {
             }
         }
         return channelMap.get(endpoint);
+    }
+
+    /**
+     * @program: TcpProject
+     * @description:
+     * @author: XSL
+     * @create: 2018-05-17 00:03
+     **/
+
+    public static class NettyClientInitializer extends ChannelInitializer<SocketChannel> {
+        @Override
+        protected void initChannel(SocketChannel socketChannel) throws Exception {
+            KryoCodeUtil util = new KryoCodeUtil(KryoPoolFactory.getKryoPoolInstance());
+            socketChannel.pipeline()
+                    .addLast(new KryoEncoder(util))
+                    .addLast(new KryoDecoder(util))
+                    .addLast(new NettyClientHandler());
+//            socketChannel.pipeline()
+//                    .addLast(new JsonEncoder(JsonCodeUtil.getResponseCodeUtil()))
+//                    .addLast(new JsonDecoder(JsonCodeUtil.getResponseCodeUtil()))
+//                    .addLast(new NettyClientHandler());
+        }
     }
 }

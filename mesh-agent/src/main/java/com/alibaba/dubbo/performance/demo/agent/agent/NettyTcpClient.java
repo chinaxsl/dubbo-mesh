@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
  **/
 
 public class NettyTcpClient {
-//    private Logger logger = LoggerFactory.getLogger(NettyTcpClient.class);
     private MyConnectManager manager = new MyConnectManager();
 
     public MyFuture<MessageResponse> send(Endpoint endpoint,MessageRequest request) throws Exception {

@@ -18,12 +18,9 @@ import org.slf4j.LoggerFactory;
  **/
 
 public class NettyClientHandler extends SimpleChannelInboundHandler<MessageResponse> {
-    private Logger logger = LoggerFactory.getLogger(NettyClientHandler.class);
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, MessageResponse messageResponse) throws Exception {
-//        logger.info("接受到回调");
         MyFuture<MessageResponse> future = Holder.removeRequest(messageResponse.getMessageId());
-//        logger.info(messageResponse.toString());
         future.done(messageResponse);
     }
 }

@@ -25,11 +25,8 @@ import org.slf4j.LoggerFactory;
  **/
 
 public class NettyServerHandler extends SimpleChannelInboundHandler<MessageRequest> {
-//    private Logger logger = LoggerFactory.getLogger(NettyServerHandler.class);
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, MessageRequest messageRequest) throws Exception {
-//        channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),messageRequest.getParameter()));
-//        logger.info(messageRequest.toString());
         RpcFuture future = WaitService.executeInvoke(messageRequest);
         Runnable callable = () -> {
             try {
