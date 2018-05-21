@@ -6,6 +6,7 @@ import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.alibaba.dubbo.performance.demo.agent.agent.serialize.*;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -14,8 +15,10 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
+import java.util.*;
 
 /**
  * @program: dubbo-mesh
@@ -25,13 +28,21 @@ import java.util.HashMap;
  **/
 
 public class MyConnectManager {
-//    private ConcurrentHashMap<Endpoint,Channel> channelMap = new ConcurrentHashMap<>();
+    private Logger logger = LoggerFactory.getLogger(MyConnectManager.class);
     private HashMap<Endpoint,Channel> channelMap = new HashMap<>();
-    private EventLoopGroup eventLoopGroup = new NioEventLoopGroup(8);
-
+    private EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
+    private List<Channel> channelList;
     private Bootstrap bootstrap;
     private Object lock = new Object();
+    private Object listLock = new Object();
+    private Random random = new Random();
+    private static Map<String,Integer>endsMap = new HashMap<>();
+    static {
+        endsMap.put("10.10.10.3",2);
+        endsMap.put("10.10.10.4",3);
+        endsMap.put("10.10.10.5",4);
 
+    }
 
     public Channel getChannel(String url,int port) throws Exception {
         if (null == bootstrap) {
@@ -41,11 +52,10 @@ public class MyConnectManager {
                 }
             }
         }
-        Endpoint endpoint = new Endpoint(url,port);
-        if (channelMap.containsKey(endpoint)) {
-            return channelMap.get(endpoint);
-        }
         Channel channel = bootstrap.connect(url, port).sync().channel();
+//        logger.info(url + port);
+//        logger.info("remote" + channel.remoteAddress().toString());
+//        logger.info("local" + channel.localAddress().toString());
         return channel;
     }
 
@@ -54,7 +64,7 @@ public class MyConnectManager {
                 .group(eventLoopGroup)
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.TCP_NODELAY, true)
-                .option(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
+                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                 .channel(NioSocketChannel.class)
                 .handler(new NettyClientInitializer());
     }
@@ -70,6 +80,29 @@ public class MyConnectManager {
         return channelMap.get(endpoint);
     }
 
+    public Channel getRandomChannel(List<Endpoint> endpoints) throws Exception {
+        if (channelList == null) {
+            List<Channel> tempList = new ArrayList<>();
+            for (Endpoint endpoint : endpoints) {
+                for (int i = 0; i < endsMap.get(endpoint.getHost()); i++) {
+                    Channel channel = getChannel(endpoint.getHost(), endpoint.getPort());
+                    tempList.add(channel);
+                }
+                logger.info("tempSize = " + tempList.size() + "");
+            }
+            synchronized (listLock) {
+                if (channelList == null) {
+                    channelList = new ArrayList<>(tempList);
+                } else {
+                    for (Channel endpoint:tempList) {
+                        endpoint.close();
+                    }
+                }
+            }
+        }
+        return channelList.get(random.nextInt(channelList.size()));
+    }
+
     /**
      * @program: TcpProject
      * @description:
@@ -77,7 +110,7 @@ public class MyConnectManager {
      * @create: 2018-05-17 00:03
      **/
 
-    public static class NettyClientInitializer extends ChannelInitializer<SocketChannel> {
+    private static class NettyClientInitializer extends ChannelInitializer<SocketChannel> {
         @Override
         protected void initChannel(SocketChannel socketChannel) throws Exception {
             KryoCodeUtil util = new KryoCodeUtil(KryoPoolFactory.getKryoPoolInstance());

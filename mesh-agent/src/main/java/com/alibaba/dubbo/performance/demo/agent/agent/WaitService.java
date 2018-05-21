@@ -7,10 +7,12 @@ import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageRequest;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MyFuture;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.RpcClient;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcFuture;
+import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import com.alibaba.dubbo.performance.demo.agent.registry.EtcdRegistry;
 import com.alibaba.dubbo.performance.demo.agent.registry.IRegistry;
 import io.netty.channel.ChannelFuture;
 
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -23,9 +25,10 @@ import java.util.concurrent.Executors;
  **/
 
 public class WaitService {
-    private static Executor executor = Executors.newFixedThreadPool(512,Executors.defaultThreadFactory());
+    private static Executor executor = Executors.newFixedThreadPool(128,Executors.defaultThreadFactory());
     private static EtcdRegistry registry = new EtcdRegistry(System.getProperty("etcd.url"));
     private static RpcClient rpcClient = new RpcClient(registry);
+
 
     private WaitService() {
     }
@@ -33,7 +36,7 @@ public class WaitService {
     public static void execute(Runnable callable) {
         executor.execute(callable);
     }
-    public static RpcFuture executeInvoke(MessageRequest messageRequest) throws Exception {
-        return (RpcFuture) rpcClient.invoke(messageRequest.getInterfaceName(),messageRequest.getMethod(),messageRequest.getParameterTypesString(),messageRequest.getParameter());
+    public static MyFuture executeInvoke(MessageRequest messageRequest) throws Exception {
+        return (MyFuture) rpcClient.invoke(messageRequest.getInterfaceName(),messageRequest.getMethod(),messageRequest.getParameterTypesString(),messageRequest.getParameter());
     }
 }

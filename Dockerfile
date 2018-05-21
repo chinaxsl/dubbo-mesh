@@ -19,7 +19,7 @@ COPY start-agent.sh /usr/local/bin
 RUN set -ex \
  && chmod a+x /usr/local/bin/start-agent.sh \
  && mkdir -p /root/logs
-
-EXPOSE 8087
+ENV CATALINA_OPTS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=8971 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.rmi.port=8971"
+EXPOSE 8087 8971
 
 ENTRYPOINT ["docker-entrypoint.sh"]

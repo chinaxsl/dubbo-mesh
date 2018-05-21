@@ -79,9 +79,6 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
         byteBuf.readerIndex(savedReaderIndex);
         byte[] data = new byte[tt];
         byteBuf.readBytes(data);
-
-
-
         //byte[] data = new byte[byteBuf.readableBytes()];
         //byteBuf.readBytes(data);
 

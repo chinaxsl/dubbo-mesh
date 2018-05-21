@@ -37,7 +37,6 @@ public class KryoCodeUtil implements MessageCodeUtil {
             byte[] body = byteArrayOutputStream.toByteArray();
             out.writeInt(body.length);
             out.writeBytes(body);
-//            logger.info("" + body.length);
         } finally {
             if (byteArrayOutputStream!=null)
                 byteArrayOutputStream.close();

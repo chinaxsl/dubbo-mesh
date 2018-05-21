@@ -1,5 +1,6 @@
 package com.alibaba.dubbo.performance.demo.agent.dubbo;
 
+import com.alibaba.dubbo.performance.demo.agent.agent.model.MyFuture;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.JsonUtils;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.Request;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcFuture;
@@ -8,9 +9,6 @@ import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcRequestHolder;
 
 import com.alibaba.dubbo.performance.demo.agent.registry.IRegistry;
 import io.netty.channel.Channel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
@@ -43,18 +41,9 @@ public class RpcClient {
         request.setData(invocation);
 
 //        logger.info("requestId=" + request.getId());
-
-        RpcFuture future = new RpcFuture();
+        MyFuture future = new MyFuture();
         RpcRequestHolder.put(String.valueOf(request.getId()),future);
-
         channel.writeAndFlush(request);
-
-//        Object result = null;
-//        try {
-//            result = future.get();
-//        }catch (Exception e){
-//            e.printStackTrace();
-//        }
         return future;
     }
 }
