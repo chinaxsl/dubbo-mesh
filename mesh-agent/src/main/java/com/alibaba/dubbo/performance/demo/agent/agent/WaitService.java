@@ -25,17 +25,19 @@ import java.util.concurrent.Executors;
  **/
 
 public class WaitService {
-    private static Executor executor = Executors.newFixedThreadPool(128,Executors.defaultThreadFactory());
+    private static Executor executor = Executors.newFixedThreadPool(32,Executors.defaultThreadFactory());
     private static EtcdRegistry registry = new EtcdRegistry(System.getProperty("etcd.url"));
     private static RpcClient rpcClient = new RpcClient(registry);
 
-
     private WaitService() {
     }
-    public static void init() {}
-    public static void execute(Runnable callable) {
-        executor.execute(callable);
+    public static Executor getExecutor() {
+        return executor;
     }
+    public static void init() {}
+//    public static void execute(Runnable callable) {
+//        executor.execute(callable);
+//    }
     public static MyFuture executeInvoke(MessageRequest messageRequest) throws Exception {
         return (MyFuture) rpcClient.invoke(messageRequest.getInterfaceName(),messageRequest.getMethod(),messageRequest.getParameterTypesString(),messageRequest.getParameter());
     }

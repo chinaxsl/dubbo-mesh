@@ -8,6 +8,8 @@ import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MyFuture;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,10 +25,10 @@ public class NettyTcpClient {
     private MyConnectManager manager = new MyConnectManager();
 
     public MyFuture<MessageResponse> send(Endpoint endpoint,MessageRequest request) throws Exception {
-        Channel channel = manager.getChannel(endpoint);
-        channel.writeAndFlush(request);
         MyFuture<MessageResponse> future = new MyFuture<>();
         Holder.putRequest(request.getMessageId(),future);
+        Channel channel = manager.getChannel(endpoint);
+        channel.writeAndFlush(request);
         return future;
     }
 

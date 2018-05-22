@@ -24,8 +24,8 @@ public class AgentApp {
         if ("provider".equals(type)) {
             new NettyTcpServer().bind(port);
         } else if ("consumer".equals(type)) {
-            SpringApplication.run(AgentApp.class, args);
-//            new NettyHttpServer().bind(port);
+//            SpringApplication.run(AgentApp.class, args);
+            new NettyHttpServer().bind(port);
         }
     }
 }

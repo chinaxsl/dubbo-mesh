@@ -18,11 +18,34 @@ public class MessageRequest implements Serializable{
     private String parameterTypesString;
     private String parameter;
 
+    public MessageRequest() {
+    }
+
     public MessageRequest(String messageId, String interfaceName, String method, String parameterTypesString, String parameter) {
         this.messageId = messageId;
         this.interfaceName = interfaceName;
         this.method = method;
         this.parameterTypesString = parameterTypesString;
+        this.parameter = parameter;
+    }
+
+    public void setMessageId(String messageId) {
+        this.messageId = messageId;
+    }
+
+    public void setInterfaceName(String interfaceName) {
+        this.interfaceName = interfaceName;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public void setParameterTypesString(String parameterTypesString) {
+        this.parameterTypesString = parameterTypesString;
+    }
+
+    public void setParameter(String parameter) {
         this.parameter = parameter;
     }
 

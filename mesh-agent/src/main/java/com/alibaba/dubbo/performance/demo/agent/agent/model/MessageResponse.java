@@ -20,6 +20,17 @@ public class MessageResponse implements Serializable {
         this.resultDesc = resultDesc;
     }
 
+    public MessageResponse() {
+    }
+
+    public void setMessageId(String messageId) {
+        this.messageId = messageId;
+    }
+
+    public void setResultDesc(Object resultDesc) {
+        this.resultDesc = resultDesc;
+    }
+
     public String getMessageId() {
         return messageId;
     }

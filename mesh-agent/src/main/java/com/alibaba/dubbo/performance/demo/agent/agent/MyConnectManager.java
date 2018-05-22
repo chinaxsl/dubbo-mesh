@@ -53,9 +53,6 @@ public class MyConnectManager {
             }
         }
         Channel channel = bootstrap.connect(url, port).sync().channel();
-//        logger.info(url + port);
-//        logger.info("remote" + channel.remoteAddress().toString());
-//        logger.info("local" + channel.localAddress().toString());
         return channel;
     }
 
@@ -65,6 +62,7 @@ public class MyConnectManager {
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS,500)
                 .channel(NioSocketChannel.class)
                 .handler(new NettyClientInitializer());
     }
@@ -118,10 +116,6 @@ public class MyConnectManager {
                     .addLast(new KryoEncoder(util))
                     .addLast(new KryoDecoder(util))
                     .addLast(new NettyClientHandler());
-//            socketChannel.pipeline()
-//                    .addLast(new JsonEncoder(JsonCodeUtil.getResponseCodeUtil()))
-//                    .addLast(new JsonDecoder(JsonCodeUtil.getResponseCodeUtil()))
-//                    .addLast(new NettyClientHandler());
         }
     }
 }

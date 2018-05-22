@@ -28,21 +28,21 @@ public class NettyHttpServer {
 //    private Logger logger = LoggerFactory.getLogger(NettyHttpServer.class);
     public void bind(final int port) throws Exception {
         EventLoopGroup boss = new NioEventLoopGroup();
-        EventLoopGroup worker = new NioEventLoopGroup(4);
+        EventLoopGroup worker = new NioEventLoopGroup();
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         try {
             serverBootstrap.group(boss,worker)
                     .channel(NioServerSocketChannel.class)
                     .childOption(ChannelOption.SO_KEEPALIVE,true)
                     .childOption(ChannelOption.TCP_NODELAY,true)
-                    .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-                    .childOption(ChannelOption.ALLOCATOR,PooledByteBufAllocator.DEFAULT)
-                    .option(ChannelOption.SO_BACKLOG,1024)
+//                    .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+//                    .childOption(ChannelOption.ALLOCATOR,PooledByteBufAllocator.DEFAULT)
+                    .option(ChannelOption.SO_BACKLOG,4096)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
                             socketChannel.pipeline().addLast("http-decoder",new HttpServerCodec())
-                                    .addLast(new HttpObjectAggregator(1024))
+                                    .addLast(new HttpObjectAggregator(50 * 1024))
                                     .addLast(new HttpServerHandler());
                         }
                         });

@@ -5,6 +5,7 @@ package com.alibaba.dubbo.performance.demo.agent.agent;/**
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageRequest;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MyFuture;
+import com.alibaba.dubbo.performance.demo.agent.agent.util.Common;
 import com.alibaba.dubbo.performance.demo.agent.agent.util.IdGenerator;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import com.alibaba.dubbo.performance.demo.agent.registry.LoadBalanceChoice;
@@ -45,18 +46,13 @@ import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
  **/
 
 public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private Logger logger = LoggerFactory.getLogger(HttpServerHandler.class);
+//    private Logger logger = LoggerFactory.getLogger(HttpServerHandler.class);
     private FullHttpRequest request;
     private static NettyTcpClient tcpClient = new NettyTcpClient();
-    private static Executor executor = Executors.newFixedThreadPool(128);
-    private static String[] paramNames = {"interface","method","parameterTypesString","parameter"};
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        logger.info("name" + ctx.name());
-        logger.info("channel" + ctx.channel().id());
-        logger.info("channel infos " + ctx.channel().remoteAddress() + " " + ctx.channel().localAddress());
     }
 
     @Override
@@ -79,11 +75,10 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                 messageId,paramMap.get("interface"),paramMap.get("method"),paramMap.get("parameterTypesString"),paramMap.get("parameter")
                 );
         Endpoint endpoint = LoadBalanceChoice.findRandom("com.alibaba.dubbo.performance.demo.provider.IHelloService");
-//        MyFuture<MessageResponse> future = tcpClient.send(,messageRequest);
+        MyFuture<MessageResponse> future = tcpClient.send(endpoint,messageRequest);
         Runnable runnable = () -> {
             try {
-//                MessageResponse response = future.get();
-                MessageResponse response = new MessageResponse("1","2");
+                MessageResponse response = future.get();
                 if (!writeResponse(fullHttpRequest,channelHandlerContext, (Integer) response.getResultDesc())) {
                     channelHandlerContext.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
                 }
@@ -95,29 +90,22 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                 e.printStackTrace();
             }
         };
-        executor.execute(runnable);
+        future.addListener(runnable,null);
     }
 
     private boolean writeResponse(HttpObject httpObject, ChannelHandlerContext ctx, int data) {
         boolean keepAlive = HttpUtil.isKeepAlive(request);
         FullHttpResponse response = new DefaultFullHttpResponse(
-                HttpVersion.HTTP_1_1,httpObject.decoderResult().isSuccess()? HttpResponseStatus.OK : HttpResponseStatus.BAD_REQUEST);
+                HttpVersion.HTTP_1_1,
+                httpObject.decoderResult().isSuccess()? HttpResponseStatus.OK : HttpResponseStatus.BAD_REQUEST,
+                Unpooled.copiedBuffer(String.valueOf(data).getBytes()));
         if (keepAlive) {
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
         }
-        String cookieString = request.headers().get(HttpHeaderNames.COOKIE);
-        if (cookieString != null) {
-            Set<Cookie> cookieSet = ServerCookieDecoder.STRICT.decode(cookieString);
-            if (!cookieSet.isEmpty()) {
-                for (Cookie cookie : cookieSet) {
-                    response.headers().add(HttpHeaderNames.SET_COOKIE, ServerCookieEncoder.STRICT.encode(cookie));
-                }
-            }
-        }
-        response.content().writeBytes(String.valueOf(data).getBytes());
+//        response.content().writeBytes(String.valueOf(data).getBytes());
         response.headers().add(CONTENT_TYPE,"application/json;charset=utf-8");
         response.headers().add(CONTENT_LENGTH,response.content().readableBytes());
-        ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+        ctx.writeAndFlush(response);
         return keepAlive;
     }
     @Override
