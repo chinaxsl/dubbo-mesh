@@ -20,10 +20,6 @@ public class MyRpcFuture<T> implements ListenableFuture<T> {
         return null;
     }
 
-    @Override
-    public CompletableFuture<T> toCompletableFuture() {
-        return null;
-    }
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {

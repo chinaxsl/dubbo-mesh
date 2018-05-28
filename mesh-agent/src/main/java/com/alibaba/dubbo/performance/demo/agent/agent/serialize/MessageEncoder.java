@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
  **/
 
 public class MessageEncoder extends MessageToByteEncoder<Object> {
-    private Logger logger = LoggerFactory.getLogger(MessageEncoder.class);
+//    private Logger logger = LoggerFactory.getLogger(MessageEncoder.class);
     private MessageCodeUtil codeUtil = null;
 
     public MessageEncoder(final MessageCodeUtil codeUtil) {
@@ -28,6 +28,7 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
 
     @Override
     protected void encode(ChannelHandlerContext channelHandlerContext, Object object, ByteBuf byteBuf) throws Exception {
+//        logger.info("buffer " + byteBuf.capacity());
         codeUtil.encode(byteBuf,object);
     }
 }

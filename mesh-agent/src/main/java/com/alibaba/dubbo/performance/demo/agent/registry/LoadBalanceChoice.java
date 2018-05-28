@@ -22,7 +22,7 @@ public class LoadBalanceChoice {
     private static Map<String,Integer>endsMap = new HashMap<>();
     static {
         endsMap.put("10.10.10.3",1);
-        endsMap.put("10.10.10.4",2);
+        endsMap.put("10.10.10.4",4);
         endsMap.put("10.10.10.5",3);
 
     }
@@ -51,6 +51,24 @@ public class LoadBalanceChoice {
         return LoadBalanceChoice.roundChoice(endpoints);
     }
 
+    public static Endpoint findWeighted(String serviceName) throws Exception {
+        if (null == endpoints) {
+            synchronized (lock) {
+                if (null == endpoints) {
+                    endpoints = registry.find(serviceName);
+                }
+            }
+        }
+        List<Endpoint> endpointList = new ArrayList<>();
+        for (Endpoint endpoint : endpoints) {
+            for (int i = 0; i < endsMap.get(endpoint.getHost()); i++) {
+                Endpoint endpoint1 = new Endpoint(endpoint.getHost(),endpoint.getPort());
+                endpointList.add(endpoint1);
+            }
+        }
+        return roundChoice(endpointList);
+    }
+
     public static Endpoint weightedChoice(List<Endpoint> endpointList) {
         if (null == endpoints) {
             synchronized (lock) {
@@ -65,7 +83,7 @@ public class LoadBalanceChoice {
                 }
             }
         }
-        return randomChoice(endpoints);
+        return roundChoice(endpoints);
     }
 
     public static Endpoint randomChoice(List<Endpoint> endpoints) {
@@ -75,4 +93,5 @@ public class LoadBalanceChoice {
     public static Endpoint roundChoice(List<Endpoint> endpoints) {
         return endpoints.get((pos++) % endpoints.size());
     }
+
 }

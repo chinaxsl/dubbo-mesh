@@ -9,6 +9,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -22,20 +24,20 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 public class NettyTcpServer {
     public void bind(int port) throws Exception {
-        WaitService.init();
+        InvokeService.init();
         //  默认线程数 为 2 * cpu个数
-        EventLoopGroup bossGroup = new NioEventLoopGroup();
-        EventLoopGroup workerGroup = new NioEventLoopGroup(4);
+        EventLoopGroup bossGroup = new EpollEventLoopGroup(1);
+        EventLoopGroup workerGroup = new EpollEventLoopGroup(4);
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(bossGroup,workerGroup)
-                    .channel(NioServerSocketChannel.class)
+                    .channel(EpollServerSocketChannel.class)
                     // boss线程处理客户端连接时等待队列的大小
                     .option(ChannelOption.SO_BACKLOG,1028)
-                    // bossGroup 的bytebuf 使用池化内存，在高并发下可以提高性能
+                    // bossGroup 的bytebuf 使用直接内存，在高并发下可以提高io性能
                     .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-                    // workerGroup 也使用池化内存
-                    .childOption(ChannelOption.ALLOCATOR,PooledByteBufAllocator.DEFAULT)
+////                    // workerGroup 也使用直接内存
+                    .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                     // 心跳检测
                     .childOption(ChannelOption.SO_KEEPALIVE,true)
                     // 禁用naggle算法，naggle算法会在发送数据时等待多个包合并发送提高网络的利用率，但会降低实时性
@@ -63,15 +65,16 @@ public class NettyTcpServer {
 
         @Override
         protected void initChannel(SocketChannel SocketChannel) throws Exception {
-            KryoCodeUtil util = new KryoCodeUtil(KryoPoolFactory.getKryoPoolInstance());
+//            ProtostuffCodeUtil util = ProtostuffCodeUtil.getServerCodeUtil();
+//            SocketChannel.pipeline().addLast(new ProtostuffEncoder(util))
+//                    .addLast(new ProtostuffDecoder(util))
+//                    .addLast(new NettyServerHandler());
+
+            KryoCodeUtil util = KryoCodeUtil.getKryoCodeUtil();
             SocketChannel.pipeline()
                     .addLast(new KryoEncoder(util))
                     .addLast(new KryoDecoder(util))
                     .addLast(new NettyServerHandler());
-    //            SocketChannel.pipeline()
-    //                    .addLast(new JsonEncoder(JsonCodeUtil.getRequestCodeUtil()))
-    //                    .addLast(new JsonDecoder(JsonCodeUtil.getRequestCodeUtil()))
-    //                    .addLast(new NettyServerHandler());
         }
     }
 }

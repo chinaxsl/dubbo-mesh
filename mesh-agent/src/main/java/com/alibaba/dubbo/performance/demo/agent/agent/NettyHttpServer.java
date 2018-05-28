@@ -4,11 +4,15 @@ package com.alibaba.dubbo.performance.demo.agent.agent;/**
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
@@ -27,22 +31,22 @@ import org.slf4j.LoggerFactory;
 public class NettyHttpServer {
 //    private Logger logger = LoggerFactory.getLogger(NettyHttpServer.class);
     public void bind(final int port) throws Exception {
-        EventLoopGroup boss = new NioEventLoopGroup();
-        EventLoopGroup worker = new NioEventLoopGroup();
-        ServerBootstrap serverBootstrap = new ServerBootstrap();
+//        InvokeService.init();
+        EventLoopGroup boss = new EpollEventLoopGroup(2);
+        EventLoopGroup worker = new EpollEventLoopGroup();
+        ServerBootstrap serverBootstrap = new ServerBootstrap().group(boss,worker);
         try {
-            serverBootstrap.group(boss,worker)
-                    .channel(NioServerSocketChannel.class)
+            serverBootstrap.channel(EpollServerSocketChannel.class)
                     .childOption(ChannelOption.SO_KEEPALIVE,true)
                     .childOption(ChannelOption.TCP_NODELAY,true)
-//                    .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-//                    .childOption(ChannelOption.ALLOCATOR,PooledByteBufAllocator.DEFAULT)
+                    .option(ChannelOption.ALLOCATOR,PooledByteBufAllocator.DEFAULT)
+                    .childOption(ChannelOption.ALLOCATOR,PooledByteBufAllocator.DEFAULT)
                     .option(ChannelOption.SO_BACKLOG,4096)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            socketChannel.pipeline().addLast("http-decoder",new HttpServerCodec())
-                                    .addLast(new HttpObjectAggregator(50 * 1024))
+                            socketChannel.pipeline().addLast(new HttpServerCodec())
+                                    .addLast(new HttpObjectAggregator(10 * 1024))
                                     .addLast(new HttpServerHandler());
                         }
                         });

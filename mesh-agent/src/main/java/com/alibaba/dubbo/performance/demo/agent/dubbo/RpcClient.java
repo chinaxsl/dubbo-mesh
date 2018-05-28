@@ -1,9 +1,8 @@
 package com.alibaba.dubbo.performance.demo.agent.dubbo;
 
-import com.alibaba.dubbo.performance.demo.agent.agent.model.MyFuture;
+import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageFuture;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.JsonUtils;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.Request;
-import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcFuture;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcInvocation;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcRequestHolder;
 
@@ -41,9 +40,9 @@ public class RpcClient {
         request.setData(invocation);
 
 //        logger.info("requestId=" + request.getId());
-        MyFuture future = new MyFuture();
+        MessageFuture future = new MessageFuture();
         RpcRequestHolder.put(String.valueOf(request.getId()),future);
-        channel.writeAndFlush(request);
+        channel.writeAndFlush(request,channel.voidPromise());
         return future;
     }
 }

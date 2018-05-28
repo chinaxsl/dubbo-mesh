@@ -9,5 +9,4 @@ import java.util.concurrent.Future;
  */
 public interface ListenableFuture<V> extends Future<V> {
     ListenableFuture<V> addListener(Runnable listener, Executor executor);
-    CompletableFuture<V> toCompletableFuture();
 }

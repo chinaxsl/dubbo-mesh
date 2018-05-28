@@ -11,11 +11,14 @@ import java.util.concurrent.*;
  * @create: 2018-05-13 16:56
  **/
 
-public class MyFuture<T> implements ListenableFuture<T> {
+public class MessageFuture<T> implements ListenableFuture<T> {
 //    private CountDownLatch latch = new CountDownLatch(1);
 //    private T result;
     private CompletableFuture<T> future = new CompletableFuture<T>();
 
+    //executor 不为null时，使用executor执行listener任务
+    // 为null时，则使用当前线程
+    // 任务会在futur有结果后开始执行
     @Override
     public ListenableFuture<T> addListener(Runnable listener, Executor executor) {
         if (executor == null) {
@@ -23,11 +26,6 @@ public class MyFuture<T> implements ListenableFuture<T> {
         }
         future.whenCompleteAsync((r,v) -> listener.run(),executor);
         return this;
-    }
-
-    @Override
-    public CompletableFuture<T> toCompletableFuture() {
-        return future;
     }
 
     @Override
@@ -53,7 +51,6 @@ public class MyFuture<T> implements ListenableFuture<T> {
 
     @Override
     public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-//        latch.await();
         return future.get();
     }
 

@@ -16,7 +16,7 @@ public class IdGenerator {
     private static AtomicInteger count = new AtomicInteger(0);
     public static String getIdByUUID() {
         UUID uuid = UUID.randomUUID();
-        return uuid.toString().replace("-","");
+        return uuid.toString();
     }
     public static String getIdByIncrement() {
         return String.valueOf(count.getAndIncrement());

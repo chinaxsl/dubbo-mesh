@@ -20,7 +20,9 @@ import java.io.IOException;
  **/
 
 public class KryoCodeUtil implements MessageCodeUtil {
-//    private Logger logger = LoggerFactory.getLogger(KryoCodeUtil.class);
+    private Logger logger = LoggerFactory.getLogger(KryoCodeUtil.class);
+    private static KryoCodeUtil kryoCodeUtil = new KryoCodeUtil(KryoPoolFactory.getKryoPoolInstance());
+
     private KryoPool pool;
     private KryoSerialize kryoSerialize;
     public KryoCodeUtil(KryoPool pool) {
@@ -53,5 +55,9 @@ public class KryoCodeUtil implements MessageCodeUtil {
             if (byteArrayInputStream!=null)
                 byteArrayInputStream.close();
         }
+    }
+
+    public static KryoCodeUtil getKryoCodeUtil() {
+        return kryoCodeUtil;
     }
 }
