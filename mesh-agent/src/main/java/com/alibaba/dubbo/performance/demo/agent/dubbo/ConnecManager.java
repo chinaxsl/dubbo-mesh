@@ -13,7 +13,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import java.util.*;
 
 public class ConnecManager {
-    private EventLoopGroup eventLoopGroup = new EpollEventLoopGroup();
+    private EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
     private Bootstrap bootstrap;
     private Channel channel;
     private Object lock = new Object();
@@ -53,7 +53,7 @@ public class ConnecManager {
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-                .channel(EpollSocketChannel.class)
+                .channel(NioSocketChannel.class)
                 .handler(new RpcClientInitializer());
     }
 }

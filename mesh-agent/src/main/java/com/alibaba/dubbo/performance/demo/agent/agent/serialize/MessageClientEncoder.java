@@ -20,14 +20,14 @@ import org.slf4j.LoggerFactory;
  **/
 
 public class MessageClientEncoder extends MessageToByteEncoder<Object> {
-    private Logger logger = LoggerFactory.getLogger(MessageClientEncoder.class);
+//    private Logger logger = LoggerFactory.getLogger(MessageClientEncoder.class);
     public MessageClientEncoder(MessageCodeUtil codeUtil) {
         this.codeUtil = codeUtil;
     }
     private MessageCodeUtil codeUtil = null;
     @Override
     protected void encode(ChannelHandlerContext channelHandlerContext, Object object, ByteBuf byteBuf) throws Exception {
-        logger.info(byteBuf.isDirect() + "");
+//        logger.info(byteBuf.isDirect() + "");
         codeUtil.encode(byteBuf,object);
 //        if (object instanceof MessageRequest) {
 //            logger.info("request put");

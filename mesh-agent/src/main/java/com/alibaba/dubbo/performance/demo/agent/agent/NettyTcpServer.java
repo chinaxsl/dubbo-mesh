@@ -3,6 +3,7 @@ package com.alibaba.dubbo.performance.demo.agent.agent;/**
  */
 
 import com.alibaba.dubbo.performance.demo.agent.agent.serialize.*;
+import com.alibaba.dubbo.performance.demo.agent.registry.EtcdRegistry;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -23,11 +24,12 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
  **/
 
 public class NettyTcpServer {
+    private static EtcdRegistry registry = new EtcdRegistry(System.getProperty("etcd.url"));
     public void bind(int port) throws Exception {
         InvokeService.init();
         //  默认线程数 为 2 * cpu个数
-        EventLoopGroup bossGroup = new EpollEventLoopGroup(1);
-        EventLoopGroup workerGroup = new EpollEventLoopGroup(4);
+        EventLoopGroup bossGroup = new EpollEventLoopGroup(2);
+        EventLoopGroup workerGroup = new EpollEventLoopGroup();
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(bossGroup,workerGroup)

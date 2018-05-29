@@ -46,7 +46,6 @@ public class MessageClientDecoder extends ByteToMessageDecoder {
             byteBuf.readBytes(messageBody);
             try {
                 Object response = codeUtil.decode(messageBody);
-                logger.info(byteBuf.isDirect() + "");
                 MessageFuture future = Holder.removeRequest(((MessageResponse) response).getMessageId());
                 if (future!=null) {
                     future.done(response);

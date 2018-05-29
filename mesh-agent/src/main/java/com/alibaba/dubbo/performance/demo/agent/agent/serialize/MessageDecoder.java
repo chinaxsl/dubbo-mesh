@@ -2,6 +2,8 @@ package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
  * Created by msi- on 2018/5/18.
  */
 
+import com.alibaba.dubbo.performance.demo.agent.agent.model.Holder;
+import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageFuture;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.sun.org.apache.regexp.internal.RE;
 import io.netty.buffer.ByteBuf;
@@ -46,6 +48,12 @@ public class MessageDecoder extends ByteToMessageDecoder {
           byteBuf.readBytes(messageBody);
           try {
               Object response = codeUtil.decode(messageBody);
+              if (response instanceof MessageResponse) {
+                  MessageFuture future = Holder.removeRequest(((MessageResponse) response).getMessageId());
+                  if (future!=null) {
+                      future.done(response);
+                  }
+              }
               list.add(response);
           } catch (IOException e) {
               e.printStackTrace();

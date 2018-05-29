@@ -14,6 +14,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
@@ -37,7 +38,7 @@ import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
  * @create: 2018-05-18 20:33
  **/
 public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private static ConcurrentHashMap<EventLoop,Channel> channelMap = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<String,Channel> channelMap = new ConcurrentHashMap<>();
     private Map<String,String> paramMap = new HashMap<>();
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, FullHttpRequest fullHttpRequest) throws Exception {
@@ -48,7 +49,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
             paramMap.put(attribute.getName(),attribute.getValue());
         }
         MessageRequest messageRequest = new MessageRequest(
-                IdGenerator.getIdByUUID(),paramMap.get("interface"),paramMap.get("method"),paramMap.get("parameterTypesString"),paramMap.get("parameter")
+                IdGenerator.getIdByIncrement(),paramMap.get("interface"),paramMap.get("method"),paramMap.get("parameterTypesString"),paramMap.get("parameter")
                 );
         MessageFuture<MessageResponse> future = sendRequest("com.alibaba.dubbo.performance.demo.provider.IHelloService",messageRequest,channelHandlerContext);
         Runnable runnable = () -> {
@@ -86,9 +87,10 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         final Channel channel = channelHandlerContext.channel();
         MessageFuture<MessageResponse> future = new MessageFuture<>();
         Holder.putRequest(request.getMessageId(), future);
-        Channel nextChannel = channelMap.get(channel.eventLoop());
+        Endpoint endpoint = LoadBalanceChoice.findRound(serviceName);
+        String key = channel.eventLoop().toString() + endpoint.toString();
+        Channel nextChannel = channelMap.get(key);
         if (nextChannel == null) {
-            Endpoint endpoint = LoadBalanceChoice.findRound(serviceName);
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(channel.eventLoop())
                     .channel(EpollSocketChannel.class)
@@ -97,7 +99,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                     .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                     .handler(new NettyClientInitializer());
             ChannelFuture channelFuture = bootstrap.connect(endpoint.getHost(),endpoint.getPort());
-            channelFuture.addListener(new ListenerImpl(request));
+            channelFuture.addListener(new ListenerImpl(request,endpoint));
         } else {
             nextChannel.writeAndFlush(request, nextChannel.voidPromise());
         }
@@ -106,14 +108,16 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
 
     private static final class ListenerImpl implements ChannelFutureListener {
         private final Object objects;
-        public ListenerImpl(Object object) {
+        private final Endpoint endpoint;
+        public ListenerImpl(Object object,Endpoint endpoint) {
             objects = object;
+            this.endpoint = endpoint;
         }
         @Override
         public void operationComplete(ChannelFuture channelFuture) throws Exception {
             if (channelFuture.isSuccess()) {
                 Channel channel = channelFuture.channel();
-                channelMap.put(channel.eventLoop(),channel);
+                channelMap.put(channel.eventLoop().toString() + endpoint.toString(),channel);
                 channel.writeAndFlush(objects, channel.voidPromise());
             }
             else {

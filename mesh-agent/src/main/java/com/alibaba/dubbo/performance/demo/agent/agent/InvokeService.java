@@ -29,8 +29,5 @@ public class InvokeService {
 //    public static void execute(Runnable callable) {
 //        executor.execute(callable);
 //    }
-    public static MessageFuture executeInvoke(MessageRequest messageRequest) throws Exception {
-        return (MessageFuture) rpcClient.invoke(messageRequest.getInterfaceName(),messageRequest.getMethod(),messageRequest.getParameterTypesString(),messageRequest.getParameter());
-    }
 
 }
