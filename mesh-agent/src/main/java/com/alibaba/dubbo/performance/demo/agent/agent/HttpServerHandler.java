@@ -14,6 +14,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.Attribute;
@@ -38,8 +39,15 @@ import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
  * @create: 2018-05-18 20:33
  **/
 public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+    private Logger logger = LoggerFactory.getLogger(HttpServerHandler.class);
     private static ConcurrentHashMap<String,Channel> channelMap = new ConcurrentHashMap<>();
     private Map<String,String> paramMap = new HashMap<>();
+    private static Map<String,String> map = new HashMap<>();
+    static {
+        map.put("10.10.10.3","provider-small");
+        map.put("10.10.10.4","provider-medium");
+        map.put("10.10.10.5","provider-large");
+    }
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, FullHttpRequest fullHttpRequest) throws Exception {
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(fullHttpRequest);
@@ -55,6 +63,11 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         Runnable runnable = () -> {
             try {
                 MessageResponse response = future.get();
+//                long time = System.nanoTime();
+//                long interval = time - Holder.removeTime(response.getMessageId());
+//                logger.info(map.get(response.getEndpoint().getHost()) + " : " + " cost = " + interval/1000000 + "ms executing task = " + response.getExecutingTask() + " now WaitTask = " + Holder.getSize());
+//                LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService", interval/1000 ,response.getEndpoint());
+//                LoadBalanceChoice.addExecutingTaskCount(response.getEndpoint().getHost(),response.getExecutingTask());
                 if (!writeResponse(fullHttpRequest,fullHttpRequest,channelHandlerContext, (Integer) response.getResultDesc())) {
                 }
             } catch (Exception e) {
@@ -87,7 +100,9 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         final Channel channel = channelHandlerContext.channel();
         MessageFuture<MessageResponse> future = new MessageFuture<>();
         Holder.putRequest(request.getMessageId(), future);
-        Endpoint endpoint = LoadBalanceChoice.findRound(serviceName);
+        Endpoint endpoint = LoadBalanceChoice.weightedrandomChoice(serviceName);
+        request.setEndpoint(endpoint);
+//        logger.info("now choose " + map.get(endpoint.getHost()));
         String key = channel.eventLoop().toString() + endpoint.toString();
         Channel nextChannel = channelMap.get(key);
         if (nextChannel == null) {

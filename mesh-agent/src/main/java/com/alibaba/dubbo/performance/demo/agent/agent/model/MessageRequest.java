@@ -2,6 +2,8 @@ package com.alibaba.dubbo.performance.demo.agent.agent.model;/**
  * Created by msi- on 2018/5/13.
  */
 
+import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
+
 import java.io.Serializable;
 
 /**
@@ -17,8 +19,20 @@ public class MessageRequest implements Serializable{
     private String method;
     private String parameterTypesString;
     private String parameter;
-
+    private Endpoint endpoint;
+    private int executingTask;
+//    private long sendTime = System.nanoTime();
     public MessageRequest() {
+    }
+
+    public MessageRequest(String messageId, String interfaceName, String method, String parameterTypesString, String parameter,Endpoint endpoint) {
+        this.messageId = messageId;
+        this.interfaceName = interfaceName;
+        this.method = method;
+        this.parameterTypesString = parameterTypesString;
+        this.parameter = parameter;
+        this.endpoint = endpoint;
+        this.executingTask = 0;
     }
 
     public MessageRequest(String messageId, String interfaceName, String method, String parameterTypesString, String parameter) {
@@ -27,26 +41,16 @@ public class MessageRequest implements Serializable{
         this.method = method;
         this.parameterTypesString = parameterTypesString;
         this.parameter = parameter;
+        this.endpoint = Endpoint.emptyEndpoint();
+        this.executingTask = 0;
+}
+
+    public void setEndpoint(Endpoint endpoint) {
+        this.endpoint = endpoint;
     }
 
-    public void setMessageId(String messageId) {
-        this.messageId = messageId;
-    }
-
-    public void setInterfaceName(String interfaceName) {
-        this.interfaceName = interfaceName;
-    }
-
-    public void setMethod(String method) {
-        this.method = method;
-    }
-
-    public void setParameterTypesString(String parameterTypesString) {
-        this.parameterTypesString = parameterTypesString;
-    }
-
-    public void setParameter(String parameter) {
-        this.parameter = parameter;
+    public int getExecutingTask() {
+        return executingTask;
     }
 
     public String getMessageId() {
@@ -67,6 +71,10 @@ public class MessageRequest implements Serializable{
 
     public String getParameter() {
         return parameter;
+    }
+
+    public Endpoint getEndpoint() {
+        return endpoint;
     }
 
     @Override

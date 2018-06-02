@@ -6,6 +6,7 @@ import com.alibaba.dubbo.performance.demo.agent.dubbo.model.Request;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcInvocation;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
@@ -45,18 +46,19 @@ public class DubboRpcEncoder extends MessageToByteEncoder{
 
         // encode request data.
         int savedWriteIndex = buffer.writerIndex();
-        buffer.writerIndex(savedWriteIndex + HEADER_LENGTH);
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+//        buffer.writerIndex(savedWriteIndex + HEADER_LENGTH);
+        buffer.writeBytes(header);
+        ByteBufOutputStream bos = new ByteBufOutputStream(buffer);
         encodeRequestData(bos, req.getData());
-
-        int len = bos.size();
-        buffer.writeBytes(bos.toByteArray());
-        Bytes.int2bytes(len, header, 12);
-
+        int endWriteIndex = buffer.writerIndex();
+        buffer.setInt(savedWriteIndex + 12,endWriteIndex - savedWriteIndex - HEADER_LENGTH);
+//        int len = bos.size();
+//        buffer.writeBytes(bos.toByteArray());
+//        Bytes.int2bytes(len, header, 12);
         // write
-        buffer.writerIndex(savedWriteIndex);
-        buffer.writeBytes(header); // write header.
-        buffer.writerIndex(savedWriteIndex + HEADER_LENGTH + len);
+//        buffer.writerIndex(savedWriteIndex);
+//        buffer.writeBytes(header); // write header.
+//        buffer.writerIndex(savedWriteIndex + HEADER_LENGTH + len);
     }
 
     public void encodeRequestData(OutputStream out, Object data) throws Exception {

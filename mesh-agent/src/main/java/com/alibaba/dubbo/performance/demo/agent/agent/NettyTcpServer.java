@@ -4,6 +4,7 @@ package com.alibaba.dubbo.performance.demo.agent.agent;/**
 
 import com.alibaba.dubbo.performance.demo.agent.agent.serialize.*;
 import com.alibaba.dubbo.performance.demo.agent.registry.EtcdRegistry;
+import com.esotericsoftware.kryo.pool.KryoPool;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -71,11 +72,9 @@ public class NettyTcpServer {
 //            SocketChannel.pipeline().addLast(new ProtostuffEncoder(util))
 //                    .addLast(new ProtostuffDecoder(util))
 //                    .addLast(new NettyServerHandler());
-
-            KryoCodeUtil util = KryoCodeUtil.getKryoCodeUtil();
             SocketChannel.pipeline()
-                    .addLast(new KryoEncoder(util))
-                    .addLast(new KryoDecoder(util))
+                    .addLast(new MessageEncoder(KryoPoolFactory.getKryoPoolInstance()))
+                    .addLast(new MessageDecoder(KryoPoolFactory.getKryoPoolInstance()))
                     .addLast(new NettyServerHandler());
         }
     }

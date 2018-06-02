@@ -18,12 +18,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class Holder {
     private final static ConcurrentHashMap<String,MessageFuture<MessageResponse>> requestMap  = new ConcurrentHashMap<>();
+    private final static ConcurrentHashMap<String,Long> timeMap = new ConcurrentHashMap<>();
     public static MessageFuture<MessageResponse> removeRequest(String key){
         return requestMap.remove(key);
     }
     public static void putRequest(String key, MessageFuture<MessageResponse> future) {
         requestMap.put(key,future);
+//        timeMap.put(key,System.nanoTime());
     }
-
+    public static Long removeTime(String key) {
+        return timeMap.remove(key);
+    }
+    public static int getSize() {
+        return requestMap.size();
+    }
 
 }

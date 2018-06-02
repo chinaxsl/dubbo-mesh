@@ -12,12 +12,15 @@ import com.alibaba.dubbo.performance.demo.agent.dubbo.model.JsonUtils;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.Request;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcInvocation;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcRequestHolder;
+import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
+import com.alibaba.dubbo.performance.demo.agent.registry.IpHelper;
 import com.alibaba.fastjson.JSON;
 import com.sun.org.apache.regexp.internal.RE;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +30,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @program: TcpProject
@@ -40,7 +44,14 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
     private static final String HOST = "127.0.0.1";
     private static final int PORT = Integer.valueOf(System.getProperty("dubbo.protocol.port"));
     private static ConcurrentHashMap<EventLoop,Channel> concurrentHashMap = new ConcurrentHashMap<>();
-
+    private static Endpoint endpoint;
+    static {
+        try {
+            endpoint = new Endpoint(IpHelper.getHostIp(),Integer.valueOf(System.getProperty("server.port")));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, MessageRequest messageRequest) throws Exception {
 //        concurrentHashMap.put(messageRequest.getMessageId(),Thread.currentThread().getName());
@@ -48,10 +59,10 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
         Runnable callable = () -> {
             try {
                 Integer result = JSON.parseObject((byte[]) future.get(),Integer.class);
-                MessageResponse response = new MessageResponse(messageRequest.getMessageId(),result);
+                MessageResponse response = new MessageResponse(messageRequest.getMessageId(),result,endpoint,RpcRequestHolder.getSize());
                 channelHandlerContext.writeAndFlush(response,channelHandlerContext.voidPromise());
             } catch (Exception e) {
-                channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),"-1"));
+                channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),"-1",endpoint,RpcRequestHolder.getSize()));
                 e.printStackTrace();
             }
         };
