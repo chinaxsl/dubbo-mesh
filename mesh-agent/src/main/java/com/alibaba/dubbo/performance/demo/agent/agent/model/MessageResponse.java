@@ -2,6 +2,8 @@ package com.alibaba.dubbo.performance.demo.agent.agent.model;/**
  * Created by msi- on 2018/5/16.
  */
 
+import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
+
 import java.io.Serializable;
 
 /**
@@ -14,13 +16,23 @@ import java.io.Serializable;
 public class MessageResponse implements Serializable {
     private String messageId;
     private Object resultDesc;
+    private Endpoint endpoint;
+    private int executingTask;
 
-    public MessageResponse(String messageId, Object resultDesc) {
+    public MessageResponse(String messageId, Object resultDesc, Endpoint endpoint, int executingTask) {
         this.messageId = messageId;
         this.resultDesc = resultDesc;
+        this.endpoint = endpoint;
+        this.executingTask = executingTask;
     }
 
     public MessageResponse() {
+    }
+
+
+
+    public int getExecutingTask() {
+        return executingTask;
     }
 
     public void setMessageId(String messageId) {
@@ -37,6 +49,10 @@ public class MessageResponse implements Serializable {
 
     public Object getResultDesc() {
         return resultDesc;
+    }
+
+    public Endpoint getEndpoint() {
+        return endpoint;
     }
 
     @Override

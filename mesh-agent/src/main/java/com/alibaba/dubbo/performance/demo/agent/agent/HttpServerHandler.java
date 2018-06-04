@@ -87,7 +87,8 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         final Channel channel = channelHandlerContext.channel();
         MessageFuture<MessageResponse> future = new MessageFuture<>();
         Holder.putRequest(request.getMessageId(), future);
-        Endpoint endpoint = LoadBalanceChoice.findRound(serviceName);
+        Endpoint endpoint = LoadBalanceChoice.findWeighted(serviceName);
+        request.setEndpoint(endpoint);
         String key = channel.eventLoop().toString() + endpoint.toString();
         Channel nextChannel = channelMap.get(key);
         if (nextChannel == null) {

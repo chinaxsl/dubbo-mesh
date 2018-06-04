@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 public class NettyHttpServer {
 //    private Logger logger = LoggerFactory.getLogger(NettyHttpServer.class);
     public void bind(final int port) throws Exception {
-        EventLoopGroup boss = new EpollEventLoopGroup(2);
+        EventLoopGroup boss = new EpollEventLoopGroup(1);
         EventLoopGroup worker = new EpollEventLoopGroup();
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(boss,worker);
         try {

@@ -16,10 +16,9 @@ import io.netty.channel.socket.SocketChannel;
 public class NettyClientInitializer extends ChannelInitializer<SocketChannel> {
     @Override
     protected void initChannel(SocketChannel socketChannel) throws Exception {
-        KryoCodeUtil util = KryoCodeUtil.getKryoCodeUtil();
         socketChannel.pipeline()
-                .addLast(new KryoEncoder(util))
-                .addLast(new KryoDecoder(util));
+                .addLast(new MessageEncoder())
+                .addLast(new MessageDecoder());
 //                ProtostuffCodeUtil util = ProtostuffCodeUtil.getClientCodeUtil();
 //                socketChannel.pipeline().addLast(new ProtostuffEncoder(util))
 //                        .addLast(new ProtostuffDecoder(util))

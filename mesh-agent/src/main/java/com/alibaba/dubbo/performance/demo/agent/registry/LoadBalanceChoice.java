@@ -4,6 +4,7 @@ package com.alibaba.dubbo.performance.demo.agent.registry;/**
 
 
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -20,11 +21,12 @@ public class LoadBalanceChoice {
     private static List<Endpoint> endpoints;
     private static Object lock = new Object();
     private static Map<String,Integer>endsMap = new HashMap<>();
+    private static ConcurrentLinkedQueue<Endpoint> chooseQueue = new ConcurrentLinkedQueue<>();
+    private static List<Endpoint> newEndpoints;
     static {
-        endsMap.put("10.10.10.3",1);
+        endsMap.put("10.10.10.3",2);
         endsMap.put("10.10.10.4",4);
-        endsMap.put("10.10.10.5",3);
-
+        endsMap.put("10.10.10.5",6);
     }
     private LoadBalanceChoice() {
     }
@@ -59,32 +61,47 @@ public class LoadBalanceChoice {
                 }
             }
         }
-        List<Endpoint> endpointList = new ArrayList<>();
-        for (Endpoint endpoint : endpoints) {
-            for (int i = 0; i < endsMap.get(endpoint.getHost()); i++) {
-                Endpoint endpoint1 = new Endpoint(endpoint.getHost(),endpoint.getPort());
-                endpointList.add(endpoint1);
-            }
-        }
-        return roundChoice(endpointList);
-    }
-
-    public static Endpoint weightedChoice(List<Endpoint> endpointList) {
-        if (null == endpoints) {
+        if (newEndpoints == null) {
             synchronized (lock) {
-                if (null == endpoints) {
-                    endpoints = new ArrayList<>();
-                    for (Endpoint endpoint : endpointList) {
-                        for (int i = 0; i < endsMap.get(endpoint.getHost()); i++) {
-                            Endpoint endpoint1 = new Endpoint(endpoint.getHost(), endpoint.getPort());
-                            endpoints.add(endpoint1);
+                if (newEndpoints == null ) {
+                    newEndpoints = new ArrayList<>();
+                    for (Endpoint endpoint1 : endpoints) {
+                        for (int i = 0; i < endsMap.get(endpoint1.getHost()); i++) {
+                            Endpoint endpoint2 = new Endpoint(endpoint1.getHost(), endpoint1.getPort());
+                            newEndpoints.add(endpoint2);
                         }
                     }
                 }
             }
         }
-        return roundChoice(endpoints);
+        Endpoint endpoint = chooseQueue.poll();
+        if (endpoint == null) {
+            List<Endpoint> endpointList = new ArrayList<>(newEndpoints);
+            Collections.shuffle(endpointList);
+            if (chooseQueue.size() == 0) {
+                chooseQueue = new ConcurrentLinkedQueue<>(endpointList);
+            }
+            endpoint = chooseQueue.poll();
+        }
+        return endpoint;
     }
+
+//    public static Endpoint weightedChoice(List<Endpoint> endpointList) {
+//        if (null == endpoints) {
+//            synchronized (lock) {
+//                if (null == endpoints) {
+//                    endpoints = new ArrayList<>();
+//                    for (Endpoint endpoint : endpointList) {
+//                        for (int i = 0; i < endsMap.get(endpoint.getHost()); i++) {
+//                            Endpoint endpoint1 = new Endpoint(endpoint.getHost(), endpoint.getPort());
+//                            endpoints.add(endpoint1);
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        return roundChoice(endpoints);
+//    }
 
     public static Endpoint randomChoice(List<Endpoint> endpoints) {
         return endpoints.get(random.nextInt(endpoints.size()));

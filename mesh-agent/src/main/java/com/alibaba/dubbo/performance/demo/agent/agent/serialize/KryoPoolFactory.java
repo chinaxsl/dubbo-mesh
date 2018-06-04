@@ -2,6 +2,7 @@ package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
  * Created by msi- on 2018/5/18.
  */
 
+import com.alibaba.dubbo.performance.demo.agent.agent.model.Invocation;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageRequest;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.esotericsoftware.kryo.Kryo;
@@ -23,8 +24,7 @@ public class KryoPoolFactory {
             Kryo kryo = new Kryo();
             kryo.setReferences(false);
             //把已知的结构注册到Kryo注册器里面,提高序列化/反序列化效率
-            kryo.register(MessageRequest.class);
-            kryo.register(MessageResponse.class);
+            kryo.register(Invocation.class);
             kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
             return kryo;
     };

@@ -17,9 +17,9 @@ import java.util.List;
 public class DubboRpcDecoder extends ByteToMessageDecoder {
     // header length.
     protected static final int HEADER_LENGTH = 16;
-
+    private byte[] header = new byte[HEADER_LENGTH - 4];
     protected static final byte FLAG_EVENT = (byte) 0x20;
-
+    RpcResponse response = new RpcResponse();
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) {
 
@@ -63,41 +63,29 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
      */
     private Object decode2(ByteBuf byteBuf){
 
-        int savedReaderIndex = byteBuf.readerIndex();
+//        int savedReaderIndex = byteBuf.readerIndex();
         int readable = byteBuf.readableBytes();
 
         if (readable < HEADER_LENGTH) {
             return DecodeResult.NEED_MORE_INPUT;
         }
 
-        byte[] header = new byte[HEADER_LENGTH];
-        byteBuf.readBytes(header);
-        byte[] dataLen = Arrays.copyOfRange(header,12,16);
-        int len = Bytes.bytes2int(dataLen);
+        int status = byteBuf.readInt();
+        long requestId = byteBuf.readLong();
+        int len = byteBuf.readInt();
         int tt = len + HEADER_LENGTH;
         if (readable < tt) {
             return DecodeResult.NEED_MORE_INPUT;
         }
+//        ByteBuf dataBuf = byteBuf.retainedSlice(byteBuf.readerIndex() +1,len - 2);
+        byte[] dataBytes = new byte[len-2];
+        byteBuf.skipBytes(1);
+        byteBuf.readBytes(dataBytes);
+        byteBuf.skipBytes(1);
 
-        byteBuf.readerIndex(savedReaderIndex);
-        byte[] data = new byte[tt];
-        byteBuf.readBytes(data);
-        //byte[] data = new byte[byteBuf.readableBytes()];
-        //byteBuf.readBytes(data);
-
-        // HEADER_LENGTH + 1，忽略header & Response value type的读取，直接读取实际Return value
-        // dubbo返回的body中，前后各有一个换行，去掉
-        byte[] subArray = Arrays.copyOfRange(data,HEADER_LENGTH + 2, data.length -1 );
-
-//        String s = new String(subArray);
-
-        byte[] requestIdBytes = Arrays.copyOfRange(data,4,12);
-        long requestId = Bytes.bytes2long(requestIdBytes,0);
-
-        RpcResponse response = new RpcResponse();
         String id = String.valueOf(requestId);
         response.setRequestId(id);
-        response.setBytes(subArray);
+        response.setBytes(dataBytes);
         MessageFuture future = RpcRequestHolder.remove(response.getRequestId());
         if (future != null) {
             future.done(response.getBytes());

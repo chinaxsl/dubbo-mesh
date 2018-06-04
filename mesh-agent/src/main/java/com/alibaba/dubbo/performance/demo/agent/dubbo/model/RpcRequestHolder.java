@@ -1,6 +1,7 @@
 package com.alibaba.dubbo.performance.demo.agent.dubbo.model;
 
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageFuture;
+import com.sun.org.apache.regexp.internal.RE;
 
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,5 +31,9 @@ public class RpcRequestHolder {
 
     public static MessageFuture remove(String requestId){
         return processingRpc.remove(requestId);
+    }
+
+    public static int size() {
+        return processingRpc.size();
     }
 }

@@ -28,8 +28,8 @@ public class NettyTcpServer {
     public void bind(int port) throws Exception {
         InvokeService.init();
         //  默认线程数 为 2 * cpu个数
-        EventLoopGroup bossGroup = new EpollEventLoopGroup(2);
-        EventLoopGroup workerGroup = new EpollEventLoopGroup();
+        EventLoopGroup bossGroup = new EpollEventLoopGroup(1);
+        EventLoopGroup workerGroup = new EpollEventLoopGroup(4);
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(bossGroup,workerGroup)
@@ -72,10 +72,9 @@ public class NettyTcpServer {
 //                    .addLast(new ProtostuffDecoder(util))
 //                    .addLast(new NettyServerHandler());
 
-            KryoCodeUtil util = KryoCodeUtil.getKryoCodeUtil();
             SocketChannel.pipeline()
-                    .addLast(new KryoEncoder(util))
-                    .addLast(new KryoDecoder(util))
+                    .addLast(new MessageEncoder())
+                    .addLast(new MessageDecoder())
                     .addLast(new NettyServerHandler());
         }
     }
