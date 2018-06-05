@@ -52,7 +52,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
     }
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, MessageRequest messageRequest) throws Exception {
-//        concurrentHashMap.put(messageRequest.getMessageId(),Thread.currentThread().getName());
         MessageFuture future = invoke(channelHandlerContext,messageRequest);
         Runnable callable = () -> {
             try {
@@ -60,7 +59,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
                 MessageResponse response = new MessageResponse(messageRequest.getMessageId(),result,endpoint,RpcRequestHolder.size());
                 channelHandlerContext.writeAndFlush(response,channelHandlerContext.voidPromise());
             } catch (Exception e) {
-                channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),-1,endpoint,RpcRequestHolder.size()));
+                channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),-1,endpoint,RpcRequestHolder.size(),false));
                 e.printStackTrace();
             }
         };
@@ -89,6 +88,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
         request.setTwoWay(true);
         request.setData(invocation);
         MessageFuture future = new MessageFuture();
+        future.setRequest(request);
         RpcRequestHolder.put(String.valueOf(request.getId()),future);
         Channel nextChannel = concurrentHashMap.get(channel.eventLoop());
         if (nextChannel == null) {

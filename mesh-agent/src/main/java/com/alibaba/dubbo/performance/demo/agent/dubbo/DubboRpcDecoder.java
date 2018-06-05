@@ -11,15 +11,18 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
 public class DubboRpcDecoder extends ByteToMessageDecoder {
     // header length.
+    private ChannelHandlerContext ctx;
     protected static final int HEADER_LENGTH = 16;
     private byte[] header = new byte[HEADER_LENGTH - 4];
     protected static final byte FLAG_EVENT = (byte) 0x20;
-    RpcResponse response = new RpcResponse();
+    private Logger logger = LoggerFactory.getLogger(DubboRpcDecoder.class);
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) {
 
@@ -28,7 +31,7 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
                 int savedReaderIndex = byteBuf.readerIndex();
                 Object msg = null;
                 try {
-                    msg = decode2(byteBuf);
+                    msg = decode2(channelHandlerContext,byteBuf);
                 } catch (Exception e) {
                     throw e;
                 }
@@ -36,8 +39,10 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
                     byteBuf.readerIndex(savedReaderIndex);
                     break;
                 }
-
-                list.add(msg);
+                if (msg == null) {
+                    continue;
+                }
+//                list.add(msg);
             } while (byteBuf.isReadable());
         } finally {
             if (byteBuf.isReadable()) {
@@ -61,7 +66,7 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
      * @param byteBuf
      * @return
      */
-    private Object decode2(ByteBuf byteBuf){
+    private Object decode2(ChannelHandlerContext ctx,ByteBuf byteBuf){
 
 //        int savedReaderIndex = byteBuf.readerIndex();
         int readable = byteBuf.readableBytes();
@@ -84,12 +89,16 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
         byteBuf.skipBytes(1);
 
         String id = String.valueOf(requestId);
-        response.setRequestId(id);
-        response.setBytes(dataBytes);
-        MessageFuture future = RpcRequestHolder.remove(response.getRequestId());
-        if (future != null) {
-            future.done(response.getBytes());
+        MessageFuture future = RpcRequestHolder.remove(id);
+        if ((status & 0xff) != 0x14) {
+            RpcRequestHolder.put(id,future);
+            ctx.channel().writeAndFlush(future.getRequest());
+            return null;
+        } else {
+            if (future != null) {
+                future.done(dataBytes);
+            }
         }
-        return response;
+        return null;
     }
 }

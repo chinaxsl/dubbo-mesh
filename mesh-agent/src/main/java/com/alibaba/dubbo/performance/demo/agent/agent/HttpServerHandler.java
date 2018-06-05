@@ -55,14 +55,22 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         Runnable runnable = () -> {
             try {
                 MessageResponse response = future.get();
-                if (!writeResponse(fullHttpRequest,fullHttpRequest,channelHandlerContext, (Integer) response.getResultDesc())) {
+                if (!response.isSuccess()) {
+                    channelHandlerContext.writeAndFlush(new DefaultFullHttpResponse(
+                                    HttpVersion.HTTP_1_1,
+                                    HttpResponseStatus.BAD_REQUEST)
+                    );
+                } else {
+//                long time = (System.nanoTime() - response.getSendTime());
+//                com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService",time / 1000 ,response.getEndpoint(),response.getExecutingTask());
+                    writeResponse(fullHttpRequest,fullHttpRequest,channelHandlerContext, (Integer) response.getResultDesc());
                 }
             } catch (Exception e) {
                 FullHttpResponse response = new DefaultFullHttpResponse(
                         HttpVersion.HTTP_1_1,HttpResponseStatus.BAD_REQUEST
                 );
                 channelHandlerContext.writeAndFlush(response);
-                e.printStackTrace();
+//                e.printStackTrace();
             }
         };
         // executor为null 将交给channel的绑定的eventLoop执行
@@ -87,7 +95,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         final Channel channel = channelHandlerContext.channel();
         MessageFuture<MessageResponse> future = new MessageFuture<>();
         Holder.putRequest(request.getMessageId(), future);
-        Endpoint endpoint = LoadBalanceChoice.findWeighted(serviceName);
+        Endpoint endpoint = com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.findWeighted(serviceName);
         request.setEndpoint(endpoint);
         String key = channel.eventLoop().toString() + endpoint.toString();
         Channel nextChannel = channelMap.get(key);

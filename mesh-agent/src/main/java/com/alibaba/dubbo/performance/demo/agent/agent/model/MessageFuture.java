@@ -2,6 +2,8 @@ package com.alibaba.dubbo.performance.demo.agent.agent.model;/**
  * Created by msi- on 2018/5/13.
  */
 
+import com.alibaba.dubbo.performance.demo.agent.dubbo.model.Request;
+
 import java.util.concurrent.*;
 
 /**
@@ -16,6 +18,7 @@ public class MessageFuture<T> implements ListenableFuture<T> {
 //    private T result;
     private CompletableFuture<T> future = new CompletableFuture<T>();
 
+    private Request request;
     //executor 不为null时，使用executor执行listener任务
     // 为null时，则使用当前线程
     // 任务会在futur有结果后开始执行
@@ -26,6 +29,14 @@ public class MessageFuture<T> implements ListenableFuture<T> {
         }
         future.whenCompleteAsync((r,v) -> listener.run(),executor);
         return this;
+    }
+
+    public void setRequest(Request request) {
+        this.request = request;
+    }
+
+    public Request getRequest() {
+        return request;
     }
 
     @Override

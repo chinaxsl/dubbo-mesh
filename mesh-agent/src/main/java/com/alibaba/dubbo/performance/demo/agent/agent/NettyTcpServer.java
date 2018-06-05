@@ -67,10 +67,6 @@ public class NettyTcpServer {
 
         @Override
         protected void initChannel(SocketChannel SocketChannel) throws Exception {
-//            ProtostuffCodeUtil util = ProtostuffCodeUtil.getServerCodeUtil();
-//            SocketChannel.pipeline().addLast(new ProtostuffEncoder(util))
-//                    .addLast(new ProtostuffDecoder(util))
-//                    .addLast(new NettyServerHandler());
 
             SocketChannel.pipeline()
                     .addLast(new MessageEncoder())

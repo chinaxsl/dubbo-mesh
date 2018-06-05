@@ -82,7 +82,11 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
         try {
             //为数据长度预留位置
             // id 头部 0 - 3   4个字节
-            bufOutputStream.writeByte(RESPONSE_FLAG);
+            if (response.isSuccess()) {
+                bufOutputStream.writeByte(RESPONSE_FLAG);
+            } else {
+                bufOutputStream.writeByte(RESPONSE_FLAG | 80);
+            }
             bufOutputStream.writeByte(response.getExecutingTask());
             bufOutputStream.writeInt(Integer.valueOf(response.getMessageId()));
             // 请求类型 8.1 1个比特  返回状态 8.2 - 8.8 7个比特  待返回的请求数  9 1个字节

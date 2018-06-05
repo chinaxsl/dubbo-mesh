@@ -27,6 +27,8 @@ public class DubboRpcEncoder extends MessageToByteEncoder{
     protected static final byte FLAG_EVENT = (byte) 0x20;
 
     private static final byte[] LENGTH_PLACEHOLDER = new byte[4];
+
+
     @Override
     protected void encode(ChannelHandlerContext ctx, Object msg, ByteBuf buffer) throws Exception {
         Request req = (Request)msg;

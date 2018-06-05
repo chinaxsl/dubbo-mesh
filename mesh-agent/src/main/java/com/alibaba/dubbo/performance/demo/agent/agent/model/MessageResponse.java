@@ -18,18 +18,31 @@ public class MessageResponse implements Serializable {
     private Object resultDesc;
     private Endpoint endpoint;
     private int executingTask;
+    private long sendTime;
+    private boolean isSuccess = true;
 
     public MessageResponse(String messageId, Object resultDesc, Endpoint endpoint, int executingTask) {
         this.messageId = messageId;
         this.resultDesc = resultDesc;
         this.endpoint = endpoint;
         this.executingTask = executingTask;
+        this.isSuccess = true;
+    }
+
+    public MessageResponse(String messageId, Object resultDesc, Endpoint endpoint, int executingTask, boolean isSuccess) {
+        this.messageId = messageId;
+        this.resultDesc = resultDesc;
+        this.endpoint = endpoint;
+        this.executingTask = executingTask;
+        this.isSuccess = isSuccess;
     }
 
     public MessageResponse() {
     }
 
-
+    public boolean isSuccess() {
+        return isSuccess;
+    }
 
     public int getExecutingTask() {
         return executingTask;
@@ -53,6 +66,14 @@ public class MessageResponse implements Serializable {
 
     public Endpoint getEndpoint() {
         return endpoint;
+    }
+
+    public long getSendTime() {
+        return sendTime;
+    }
+
+    public void setSendTime(long sendTime) {
+        this.sendTime = sendTime;
     }
 
     @Override

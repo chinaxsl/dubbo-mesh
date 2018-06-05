@@ -42,12 +42,12 @@ public class LoadBalanceChoice {
         executingTask.put("10.10.10.4",2);
         executingTask.put("10.10.10.5",1);
 
-        localWeight.put("10.10.10.3",1);
-        localWeight.put("10.10.10.4",2);
-        localWeight.put("10.10.10.5",3);
+        localWeight.put("10.10.10.3",2);
+        localWeight.put("10.10.10.4",4);
+        localWeight.put("10.10.10.5",6);
+        timeWeight.add(1);
         timeWeight.add(2);
         timeWeight.add(3);
-        timeWeight.add(4);
 
     }
     private LoadBalanceChoice() {
@@ -136,10 +136,10 @@ public class LoadBalanceChoice {
         return endpoint;
     }
 
-    public static void addTime(String serviceName, long interval,Endpoint endpoint) throws Exception {
+    public static void addTime(String serviceName, long interval,Endpoint endpoint,int count) throws Exception {
         checkEndpoint(serviceName);
         checkAgentStrategy();
-        agentStrategy.complete(endpoint,interval);
+        agentStrategy.complete(endpoint,interval,count);
 
     }
 
@@ -155,7 +155,7 @@ public class LoadBalanceChoice {
         double totalWeight = 0;
         for (int i = 0 ;i<endpoints.size();i++) {
             Endpoint endpoint = endpoints.get(i);
-            double weight = Math.pow(executingTask.get(endpoint.getHost())/(double)localWeight.get(endpoint.getHost()),-3);
+            double weight = Math.pow(executingTask.get(endpoint.getHost()),-3);
             probilities.add(weight);
             totalWeight += weight;
         }

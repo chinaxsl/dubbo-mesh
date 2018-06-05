@@ -9,6 +9,7 @@ import com.esotericsoftware.kryo.pool.KryoPool;
 import com.sun.org.apache.regexp.internal.RE;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -28,7 +29,6 @@ import static com.alibaba.dubbo.performance.demo.agent.agent.serialize.MessageEn
  * @author: XSL
  * @create: 2018-05-18 16:11
  **/
-
 public class MessageDecoder extends LengthFieldBasedFrameDecoder {
 //        private Logger logger = LoggerFactory.getLogger(MessageDecoder.class);
     private static final int MAX_OBJECT_SIZE = 8192;
@@ -43,35 +43,25 @@ public class MessageDecoder extends LengthFieldBasedFrameDecoder {
         super(MAX_OBJECT_SIZE,14,4);
         this.kryoSerialize = new KryoSerialize(KryoPoolFactory.getKryoPoolInstance());
     }
-    public MessageDecoder(int maxObjectSize, KryoPool pool) {
-        super(MAX_OBJECT_SIZE,14,4);
-        this.kryoSerialize = new KryoSerialize(KryoPoolFactory.getKryoPoolInstance());
-    }
     @Override
     protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
-        ByteBuf byteBuf = (ByteBuf) super.decode(ctx,in);
+                ByteBuf byteBuf = (ByteBuf) super.decode(ctx, in);
 //        logger.info("decode before");
 
-        if (byteBuf == null) {
-            return null;
-        } else {
-            try {
-                Object response = decodeData(byteBuf);
-                if (response instanceof MessageResponse) {
-                  MessageFuture future = Holder.removeRequest(((MessageResponse) response).getMessageId());
-                  if (future!=null) {
-                      future.done(response);
-                  }
-                }
+                if (byteBuf == null) {
+                    return null;
+                } else {
+                    try {
+                        Object response = decodeData(ctx, byteBuf);
 //                logger.info("decode after");
-                return response;
-            } catch (IOException e) {
-                e.printStackTrace();
-                return null;
-            }
-        }
+                        return response;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                }
     }
-    private Object decodeData(ByteBuf in) throws IOException {
+    private Object decodeData(ChannelHandlerContext ctx,ByteBuf in) throws IOException {
         //根据状态标识判断是request还是response
         status = in.readByte();
         executingTasks = ((int) in.readByte() & 0xff);
@@ -95,11 +85,20 @@ public class MessageDecoder extends LengthFieldBasedFrameDecoder {
 
         } else {
             int data = in.readInt();
+            boolean flag = true;
+            if ((status & 0x80) != 0x00) {
+                flag = false;
+            }
             MessageResponse response = new MessageResponse(
-                    id,data,endpoint,executingTasks
+                    id,data,endpoint,executingTasks,flag
             );
+            MessageFuture future = Holder.removeRequest(response.getMessageId());
+            if (future!=null) {
+                future.done(response);
+            }
             in.release();
             return response;
+
         }
     }
 }

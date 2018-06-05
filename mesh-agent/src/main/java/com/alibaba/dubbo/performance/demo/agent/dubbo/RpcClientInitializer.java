@@ -10,8 +10,8 @@ public class RpcClientInitializer extends ChannelInitializer<SocketChannel> {
     @Override
     protected void initChannel(SocketChannel socketChannel) {
         ChannelPipeline pipeline = socketChannel.pipeline();
-        pipeline.addLast(new DubboRpcEncoder());
-        pipeline.addLast(new DubboRpcDecoder());
+        pipeline.addLast("encoder",new DubboRpcEncoder());
+        pipeline.addLast("decoder",new DubboRpcDecoder());
 //        pipeline.addLast(new RpcClientHandler());
     }
 }

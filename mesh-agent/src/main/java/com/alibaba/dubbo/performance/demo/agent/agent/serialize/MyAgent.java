@@ -2,7 +2,10 @@ package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
  * Created by msi- on 2018/5/30.
  */
 
+import com.alibaba.dubbo.performance.demo.agent.agent.model.Holder;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.dc.pr.PRError;
 
 import java.util.*;
@@ -16,13 +19,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  **/
 //线程安全实现multi-agent adaptive load balancing算法
 public class MyAgent {
+    private Logger logger = LoggerFactory.getLogger(MyAgent.class);
     private static final int LENGTH = 3;
     //  表示各个provider的性能评估 参数越大性能越强
     private ThreadSafeArrayList<Double> efficiencyEstimator = new ThreadSafeArrayList<>(LENGTH);
 //    private double W;
     private final double w = 0.3;
-    private final double n = 6;
+    private final double n = 5;
+    private final double g = 2;
     private ThreadSafeArrayList<Long> completedCount = new ThreadSafeArrayList<>();
+    private ThreadSafeArrayList<Integer> executingTasks = new ThreadSafeArrayList<>();
     private ThreadSafeArrayList<Double> pd = new ThreadSafeArrayList<>(LENGTH);
     private final List<Endpoint> endpoints;
     private AtomicBoolean isHaveEmpty = new AtomicBoolean(true);
@@ -30,8 +36,8 @@ public class MyAgent {
     public MyAgent(List<Endpoint> endpoints) {
         this.endpoints = endpoints;
         localWeight.put("10.10.10.3",50000d);
-        localWeight.put("10.10.10.4",51000d);
-        localWeight.put("10.10.10.5",52000d);
+        localWeight.put("10.10.10.4",50000d);
+        localWeight.put("10.10.10.5",50000d);
         init();
     }
 
@@ -40,16 +46,18 @@ public class MyAgent {
             efficiencyEstimator.add(localWeight.get(endpoints.get(i).getHost()));
             completedCount.add(0l);
             pd.add(0.0);
+            executingTasks.add(0);
         }
     }
 
-    public void complete(Endpoint endpoint,double interval) {
+    public void complete(Endpoint endpoint,double interval,int executingCount) {
         int pos = endpoints.indexOf(endpoint);
         completedCount.set(pos,completedCount.get(pos)+1);
         updateEstimator(getW(pos),interval,pos);
+        executingTasks.set(pos,executingCount + 1);
     }
     public Endpoint randomChoiceByProbilities() {
-        updatePd(n);
+        ThreadSafeArrayList<Double> pd = updatePd(n);
         double p = Math.random();
         int len = pd.size();
         for(int i=0;i<len;i++) {
@@ -85,18 +93,20 @@ public class MyAgent {
     }
     // pd = ee -n次方   completedCount > 0
     // pd = avg/(ee) -n次方    completedCount = 0
-    private void updatePd(double n) {
+    private ThreadSafeArrayList<Double> updatePd(double n) {
+        ThreadSafeArrayList<Double> pd = new ThreadSafeArrayList<>(this.pd);
         if (!isHaveEmpty.get() || checkIsHaveEmpty().isEmpty()) {
             //provider都已经执行过任务
             double totalCount = 0;
             int len = endpoints.size();
             for (int i=0;i<len;i++) {
-                double currentPd = Math.pow(efficiencyEstimator.get(i), -n);
+                double currentPd = Math.pow(efficiencyEstimator.get(i), -n) * Math.pow(executingTasks.get(i),-g);
                 pd.set(i,currentPd);
                 totalCount += currentPd;
             }
             for (int i=0;i<len;i++) {
-                pd.set(i,pd.get(i) / totalCount);
+                pd.set(i, pd.get(i) / totalCount);
+                logger.info("current i=" + i + " value = " + pd.get(i) + " current tasks = " + executingTasks.get(i) + " total task = " + Holder.size());
             }
         } else {
             // 有provider完成的任务数为0
@@ -108,7 +118,7 @@ public class MyAgent {
                     if (!emptyList.contains(i)) {
                         double temp = efficiencyEstimator.get(i);
                         nonEmptyCount += temp;
-                        double b = Math.pow(temp, -n);
+                        double b = Math.pow(temp, -n) * Math.pow(executingTasks.get(i),-g);
                         totalCount += b;
                         pd.set(i, b);
                     }
@@ -131,6 +141,8 @@ public class MyAgent {
                 }
             }
         }
+        this.pd = new ThreadSafeArrayList<Double>(pd);
+        return pd;
     }
 
     private List<Integer> checkIsHaveEmpty() {

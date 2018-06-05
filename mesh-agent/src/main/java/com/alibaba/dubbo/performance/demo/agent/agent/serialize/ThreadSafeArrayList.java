@@ -7,6 +7,7 @@ import com.google.common.util.concurrent.AtomicDoubleArray;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,7 +29,10 @@ public class ThreadSafeArrayList<T> {
         this.elements = (T[]) new Object[MAX_NUMS];
         this.length = MAX_NUMS;
     }
-
+    public ThreadSafeArrayList(ThreadSafeArrayList safeArrayList) {
+        this.elements = (T[]) safeArrayList.toArray();
+        this.length = safeArrayList.length();
+    }
     public ThreadSafeArrayList(int length) {
         this.elements = (T[]) new Object[length];
         this.length = length;
@@ -42,11 +46,21 @@ public class ThreadSafeArrayList<T> {
     public void set(int pos,T val) {
         elements[pos] = val;
     }
+    public int length() {
+        return length;
+    }
     public int size() {
         return Math.min(pos.get(),MAX_NUMS);
     }
     public boolean isEmpty() {
         return pos.get() == 0;
+    }
+    public List<T> toList() {
+        return Arrays.asList(elements);
+    }
+
+    public T[] toArray() {
+        return Arrays.copyOf(elements,length);
     }
 }
 
