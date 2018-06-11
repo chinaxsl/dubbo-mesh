@@ -55,11 +55,11 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
         MessageFuture future = invoke(channelHandlerContext,messageRequest);
         Runnable callable = () -> {
             try {
-                Integer result = JSON.parseObject((byte[]) future.get(),Integer.class);
-                MessageResponse response = new MessageResponse(messageRequest.getMessageId(),result,endpoint,RpcRequestHolder.size());
+                int result = (int) future.get();
+                MessageResponse response = new MessageResponse(messageRequest.getMessageId(),result,RpcRequestHolder.size());
                 channelHandlerContext.writeAndFlush(response,channelHandlerContext.voidPromise());
             } catch (Exception e) {
-                channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),-1,endpoint,RpcRequestHolder.size(),false));
+                channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),-1,RpcRequestHolder.size(),false));
                 e.printStackTrace();
             }
         };
@@ -94,7 +94,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
         if (nextChannel == null) {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(channel.eventLoop())
-                    .channel(EpollSocketChannel.class)
+                    .channel(NioSocketChannel.class)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.TCP_NODELAY, true)
                     .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)

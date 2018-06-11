@@ -15,6 +15,7 @@ import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 
 /**
  * @program: TcpProject
@@ -28,12 +29,12 @@ public class NettyTcpServer {
     public void bind(int port) throws Exception {
         InvokeService.init();
         //  默认线程数 为 2 * cpu个数
-        EventLoopGroup bossGroup = new EpollEventLoopGroup(1);
-        EventLoopGroup workerGroup = new EpollEventLoopGroup(4);
+        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
+        EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(bossGroup,workerGroup)
-                    .channel(EpollServerSocketChannel.class)
+                    .channel(NioServerSocketChannel.class)
                     // boss线程处理客户端连接时等待队列的大小
                     .option(ChannelOption.SO_BACKLOG,1028)
                     // bossGroup 的bytebuf 使用直接内存，在高并发下可以提高io性能

@@ -5,45 +5,50 @@ import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageFuture;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.Bytes;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcRequestHolder;
 import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcResponse;
+import com.alibaba.dubbo.performance.demo.agent.registry.IpHelper;
 import com.alibaba.fastjson.JSON;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-public class DubboRpcDecoder extends ByteToMessageDecoder {
-    // header length.
-    private ChannelHandlerContext ctx;
-    protected static final int HEADER_LENGTH = 16;
-    private byte[] header = new byte[HEADER_LENGTH - 4];
-    protected static final byte FLAG_EVENT = (byte) 0x20;
-    private Logger logger = LoggerFactory.getLogger(DubboRpcDecoder.class);
-    @Override
-    protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) {
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+public class DubboRpcDecoder extends ByteToMessageDecoder {
+    // header length
+    private Logger logger = LoggerFactory.getLogger(DubboRpcDecoder.class);
+    private static final ConcurrentHashMap<String,Integer> times = new ConcurrentHashMap<>();
+    protected static final int HEADER_LENGTH = 16;
+    protected static final byte FLAG_EVENT = (byte) 0x20;
+    int status;
+    long requestId;
+    int len;
+    private int result;
+    private Random random = new Random();
+    @Override
+    protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) throws IOException {
         try {
             do {
                 int savedReaderIndex = byteBuf.readerIndex();
-                Object msg = null;
-                try {
-                    msg = decode2(channelHandlerContext,byteBuf);
-                } catch (Exception e) {
-                    throw e;
-                }
+                Object msg  =  decode2(channelHandlerContext,byteBuf);
                 if (msg == DecodeResult.NEED_MORE_INPUT) {
                     byteBuf.readerIndex(savedReaderIndex);
                     break;
                 }
-                if (msg == null) {
-                    continue;
-                }
 //                list.add(msg);
             } while (byteBuf.isReadable());
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             if (byteBuf.isReadable()) {
                 byteBuf.discardReadBytes();
@@ -66,7 +71,7 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
      * @param byteBuf
      * @return
      */
-    private Object decode2(ChannelHandlerContext ctx,ByteBuf byteBuf){
+    private Object decode2(ChannelHandlerContext ctx,ByteBuf byteBuf) throws Exception {
 
 //        int savedReaderIndex = byteBuf.readerIndex();
         int readable = byteBuf.readableBytes();
@@ -74,31 +79,40 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
         if (readable < HEADER_LENGTH) {
             return DecodeResult.NEED_MORE_INPUT;
         }
-
-        int status = byteBuf.readInt();
-        long requestId = byteBuf.readLong();
-        int len = byteBuf.readInt();
-        int tt = len + HEADER_LENGTH;
-        if (readable < tt) {
+        status = byteBuf.readInt();
+        requestId = byteBuf.readLong();
+        len = byteBuf.readInt();
+        if (readable < len + HEADER_LENGTH) {
             return DecodeResult.NEED_MORE_INPUT;
         }
-//        ByteBuf dataBuf = byteBuf.retainedSlice(byteBuf.readerIndex() +1,len - 2);
-        byte[] dataBytes = new byte[len-2];
-        byteBuf.skipBytes(1);
-        byteBuf.readBytes(dataBytes);
-        byteBuf.skipBytes(1);
-
         String id = String.valueOf(requestId);
         MessageFuture future = RpcRequestHolder.remove(id);
         if ((status & 0xff) != 0x14) {
-            RpcRequestHolder.put(id,future);
-            ctx.channel().writeAndFlush(future.getRequest());
-            return null;
+            byteBuf.skipBytes(len);
+            ctx.executor().schedule(() -> {
+                RpcRequestHolder.put(id, future);
+                ctx.channel().writeAndFlush(future.getRequest());
+        },random.nextInt(1000 ), TimeUnit.MICROSECONDS);
         } else {
+            ByteBuf in = byteBuf.retainedSlice(byteBuf.readerIndex() + 1, len-2);
+            ByteBufInputStream inputStream = new ByteBufInputStream(in,true);
+            byteBuf.skipBytes(len);
+            try {
+                result = JSON.parseObject(inputStream,Integer.class);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                inputStream.close();
+            }
             if (future != null) {
-                future.done(dataBytes);
+                future.done(result);
             }
         }
         return null;
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        cause.printStackTrace();
     }
 }

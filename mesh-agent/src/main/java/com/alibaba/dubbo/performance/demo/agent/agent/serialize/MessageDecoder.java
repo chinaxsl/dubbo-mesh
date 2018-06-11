@@ -4,7 +4,9 @@ package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
 
 import com.alibaba.dubbo.performance.demo.agent.agent.model.*;
 import com.alibaba.dubbo.performance.demo.agent.agent.util.Common;
+import com.alibaba.dubbo.performance.demo.agent.dubbo.DubboRpcDecoder;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
+import com.alibaba.fastjson.JSON;
 import com.esotericsoftware.kryo.pool.KryoPool;
 import com.sun.org.apache.regexp.internal.RE;
 import io.netty.buffer.ByteBuf;
@@ -18,8 +20,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 
+import static com.alibaba.dubbo.performance.demo.agent.agent.serialize.MessageEncoder.HEADER_LENGTH;
 import static com.alibaba.dubbo.performance.demo.agent.agent.serialize.MessageEncoder.REQUEST_FLAG;
 
 
@@ -29,57 +33,81 @@ import static com.alibaba.dubbo.performance.demo.agent.agent.serialize.MessageEn
  * @author: XSL
  * @create: 2018-05-18 16:11
  **/
-public class MessageDecoder extends LengthFieldBasedFrameDecoder {
-//        private Logger logger = LoggerFactory.getLogger(MessageDecoder.class);
+public class MessageDecoder extends ByteToMessageDecoder {
+    private Logger logger = LoggerFactory.getLogger(MessageDecoder.class);
     private static final int MAX_OBJECT_SIZE = 8192;
-    private byte[] endpointBytes = new byte[8];
     private String id;
     private int executingTasks;
     private int status;
-    private Endpoint endpoint;
+    private int len;
     private KryoSerialize kryoSerialize;
 
+    private static HashMap<Integer,Endpoint> endpointHashMap = new HashMap<>();
+    static {
+        endpointHashMap.put(1,new Endpoint("10.10.10.3",30000));
+        endpointHashMap.put(2,new Endpoint("10.10.10.4",30000));
+        endpointHashMap.put(3,new Endpoint("10.10.10.5",30000));
+    }
     public MessageDecoder() {
-        super(MAX_OBJECT_SIZE,14,4);
         this.kryoSerialize = new KryoSerialize(KryoPoolFactory.getKryoPoolInstance());
     }
-    @Override
-    protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
-                ByteBuf byteBuf = (ByteBuf) super.decode(ctx, in);
-//        logger.info("decode before");
-
-                if (byteBuf == null) {
-                    return null;
-                } else {
-                    try {
-                        Object response = decodeData(ctx, byteBuf);
-//                logger.info("decode after");
-                        return response;
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        return null;
-                    }
-                }
+    enum DecodeResult {
+        NEED_MORE_INPUT, SKIP_INPUT
     }
+    @Override
+    protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) throws Exception {
+            try {
+                do {
+                    int savedReaderIndex = byteBuf.readerIndex();
+                    Object msg = null;
+                    try {
+                        msg = decodeData(channelHandlerContext, byteBuf);
+                    } catch (Exception e) {
+                        throw e;
+                    }
+                    if (msg == DecodeResult.NEED_MORE_INPUT) {
+                        byteBuf.readerIndex(savedReaderIndex);
+                        break;
+                    }
+                    list.add(msg);
+                } while (byteBuf.isReadable());
+            } finally {
+                if (byteBuf.isReadable()) {
+                    byteBuf.discardReadBytes();
+                }
+            }
+    }
+
     private Object decodeData(ChannelHandlerContext ctx,ByteBuf in) throws IOException {
+        int readable = in.readableBytes();
+
+        if (readable < HEADER_LENGTH) {
+            return DecodeResult.NEED_MORE_INPUT;
+        }
+
         //根据状态标识判断是request还是response
         status = in.readByte();
         executingTasks = ((int) in.readByte() & 0xff);
         id = String.valueOf(in.readInt());
-        in.readBytes(endpointBytes);
-        endpoint = Common.bytes2endpoint(endpointBytes);
-        in.skipBytes(4);
+        len = in.readInt();
+        if (readable < len + HEADER_LENGTH) {
+            return DecodeResult.NEED_MORE_INPUT;
+        }
         if ((status & 0x01) == REQUEST_FLAG) {
-            ByteBufInputStream bufInputStream = new ByteBufInputStream(in,true);
+            int readerIndex = in.readerIndex();
+            ByteBuf byteBuf = in.slice(readerIndex,len);
+            in.readerIndex(readerIndex + len);
+            ByteBufInputStream bufInputStream = new ByteBufInputStream(byteBuf);
             Invocation invocation = null;
             try {
                 invocation = (Invocation) kryoSerialize.deserialize(bufInputStream);
+//                invocation = JSON.parseObject(bufInputStream,Invocation.class);
             } finally {
                 bufInputStream.close();
             }
             MessageRequest request = new MessageRequest(
                     id, invocation.getInterfaceName(), invocation.getMethod(),
-                    invocation.getParameterTypesString(), invocation.getParameter(), endpoint
+                    invocation.getParameterTypesString(), invocation.getParameter()
             );
             return request;
 
@@ -89,16 +117,19 @@ public class MessageDecoder extends LengthFieldBasedFrameDecoder {
             if ((status & 0x80) != 0x00) {
                 flag = false;
             }
+            int f = (status >> 1) & 0x03;
+            Endpoint endpoint = endpointHashMap.get(f);
             MessageResponse response = new MessageResponse(
-                    id,data,endpoint,executingTasks,flag
+                    id,data,executingTasks,flag
             );
+            response.setEndpoint(endpoint);
             MessageFuture future = Holder.removeRequest(response.getMessageId());
+            long time = Holder.removeTime(response.getMessageId());
+            response.setSendTime(time);
             if (future!=null) {
                 future.done(response);
             }
-            in.release();
             return response;
-
         }
     }
 }

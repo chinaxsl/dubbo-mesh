@@ -6,6 +6,9 @@ import com.alibaba.dubbo.performance.demo.agent.agent.model.Invocation;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageRequest;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.alibaba.dubbo.performance.demo.agent.agent.util.Common;
+import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
+import com.alibaba.dubbo.performance.demo.agent.registry.IpHelper;
+import com.alibaba.fastjson.JSON;
 import com.esotericsoftware.kryo.pool.KryoPool;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
@@ -16,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
 
 
 /**
@@ -30,12 +34,18 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
     private static final byte[] LENGTH_PLACEHOLDER = new byte[4];
     public static final int REQUEST_FLAG = 0x00;
     public static final int RESPONSE_FLAG= 0x01;
-    public static final int HEADER_LENGTH = 18;
+    public static final int HEADER_LENGTH = 10;
     private KryoSerialize kryoSerialize;
+    private static int ENDPOINT_FLAG;
     public MessageEncoder() {
         this.kryoSerialize = new KryoSerialize(KryoPoolFactory.getKryoPoolInstance());
     }
-
+    private static HashMap<String,Integer> endpointHashMap = new HashMap<>();
+    static {
+        endpointHashMap.put("10.10.10.3",1);
+        endpointHashMap.put("10.10.10.4",2);
+        endpointHashMap.put("10.10.10.5",3);
+    }
     @Override
     protected void encode(ChannelHandlerContext channelHandlerContext, Object object, ByteBuf byteBuf) throws Exception {
 //        logger.info("encode before");
@@ -47,7 +57,7 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
         }
         int endIndex = byteBuf.writerIndex();
         //写入长度
-        byteBuf.setInt(startIndex + 14 ,endIndex-startIndex-HEADER_LENGTH);
+        byteBuf.setInt(startIndex + HEADER_LENGTH - 4 ,endIndex-startIndex-HEADER_LENGTH);
     }
 
     private void encodeRequest(ByteBuf out, MessageRequest request) throws IOException {
@@ -61,7 +71,6 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
             bufOutputStream.writeInt(Integer.valueOf(request.getMessageId()));
             // 请求类型 8.1 1个比特  返回状态 8.2 - 8.8 7个比特  待返回的请求数  9 1个字节
             // 发送的网络ip地址 10 - 11 4个字节 网络端口 12 - 13 4个字节
-            bufOutputStream.write(Common.endpoint2bytes(request.getEndpoint()));
             bufOutputStream.write(LENGTH_PLACEHOLDER);
             Invocation invocation = new Invocation(
                     request.getInterfaceName(),
@@ -69,6 +78,7 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
                     request.getParameterTypesString(),
                     request.getParameter()
             );
+//            bufOutputStream.write(JSON.toJSONBytes(invocation));
             kryoSerialize.serialize(bufOutputStream,invocation);
         } finally {
             bufOutputStream.close();
@@ -82,19 +92,23 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
         try {
             //为数据长度预留位置
             // id 头部 0 - 3   4个字节
+            if (ENDPOINT_FLAG == 0) {
+                ENDPOINT_FLAG = endpointHashMap.get(IpHelper.getHostIp());
+            }
             if (response.isSuccess()) {
-                bufOutputStream.writeByte(RESPONSE_FLAG);
+                bufOutputStream.writeByte(RESPONSE_FLAG | (ENDPOINT_FLAG << 1));
             } else {
-                bufOutputStream.writeByte(RESPONSE_FLAG | 80);
+                bufOutputStream.writeByte(RESPONSE_FLAG | 80 | (ENDPOINT_FLAG << 1));
             }
             bufOutputStream.writeByte(response.getExecutingTask());
             bufOutputStream.writeInt(Integer.valueOf(response.getMessageId()));
             // 请求类型 8.1 1个比特  返回状态 8.2 - 8.8 7个比特  待返回的请求数  9 1个字节
             // 发送的网络ip地址 10 - 11 4个字节 网络端口 12 - 13 4个字节
-            bufOutputStream.write(Common.endpoint2bytes(response.getEndpoint()));
             // 数据体长度 头部 4 - 7  4个字节
             bufOutputStream.write(LENGTH_PLACEHOLDER);
             bufOutputStream.writeInt((Integer) response.getResultDesc());
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             bufOutputStream.close();
         }

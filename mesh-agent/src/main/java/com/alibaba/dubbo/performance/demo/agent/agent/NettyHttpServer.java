@@ -31,16 +31,16 @@ import org.slf4j.LoggerFactory;
 public class NettyHttpServer {
 //    private Logger logger = LoggerFactory.getLogger(NettyHttpServer.class);
     public void bind(final int port) throws Exception {
-        EventLoopGroup boss = new EpollEventLoopGroup(1);
-        EventLoopGroup worker = new EpollEventLoopGroup();
+        EventLoopGroup boss = new NioEventLoopGroup();
+        EventLoopGroup worker = new NioEventLoopGroup(8);
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(boss,worker);
         try {
-            serverBootstrap.channel(EpollServerSocketChannel.class)
+            serverBootstrap.channel(NioServerSocketChannel.class)
                     .childOption(ChannelOption.SO_KEEPALIVE,true)
                     .childOption(ChannelOption.TCP_NODELAY,true)
                     .option(ChannelOption.ALLOCATOR,PooledByteBufAllocator.DEFAULT)
                     .childOption(ChannelOption.ALLOCATOR,PooledByteBufAllocator.DEFAULT)
-                    .option(ChannelOption.SO_BACKLOG,4096)
+                    .option(ChannelOption.SO_BACKLOG,1024)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {

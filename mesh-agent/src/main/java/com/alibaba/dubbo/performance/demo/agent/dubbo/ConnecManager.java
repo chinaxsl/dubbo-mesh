@@ -1,6 +1,7 @@
 package com.alibaba.dubbo.performance.demo.agent.dubbo;
 
 import com.alibaba.dubbo.performance.demo.agent.agent.InvokeService;
+import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
@@ -9,25 +10,22 @@ import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import sun.dc.pr.PRError;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ConnecManager {
     private EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
     private Bootstrap bootstrap;
     private Channel channel;
     private Object lock = new Object();
-    private List<Channel> channelList;
     private Random random = new Random();
-
+    private ConcurrentHashMap<Endpoint,Channel> channelMap = new ConcurrentHashMap<>();
     public ConnecManager() {
     }
 
     public Channel getChannel() throws Exception {
-        if (null != channelList) {
-            return channelList.get(random.nextInt(channelList.size()));
-        }
-
         if (null == bootstrap) {
             synchronized (lock) {
                 if (null == bootstrap) {
@@ -45,6 +43,26 @@ public class ConnecManager {
             }
         }
         return channel;
+    }
+
+    public Channel getChannel(Endpoint endpoint) throws Exception {
+        if (null == bootstrap) {
+            synchronized (lock) {
+                if (null == bootstrap) {
+                    initBootstrap();
+                }
+            }
+        }
+        if (!channelMap.containsKey(endpoint)) {
+            synchronized (lock) {
+                Channel channel;
+                if (!channelMap.containsKey(endpoint)) {
+                    channel = bootstrap.connect(endpoint.getHost(), endpoint.getPort()).sync().channel();
+                    channelMap.put(endpoint, channel);
+                }
+            }
+        }
+        return channelMap.get(endpoint);
     }
 
     public void initBootstrap() {

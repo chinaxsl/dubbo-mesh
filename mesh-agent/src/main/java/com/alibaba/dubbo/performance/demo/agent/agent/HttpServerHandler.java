@@ -38,16 +38,18 @@ import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
  * @create: 2018-05-18 20:33
  **/
 public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private static ConcurrentHashMap<String,Channel> channelMap = new ConcurrentHashMap<>();
+//    private Logger logger = LoggerFactory.getLogger(HttpServerHandler.class);
+    private static ConcurrentHashMap<Endpoint,Channel> channelMap = new ConcurrentHashMap<>();
     private Map<String,String> paramMap = new HashMap<>();
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, FullHttpRequest fullHttpRequest) throws Exception {
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(fullHttpRequest);
-        decoder.offer(fullHttpRequest);
-        for (InterfaceHttpData data : decoder.getBodyHttpDatas()) {
-            Attribute attribute = (Attribute) data;
-            paramMap.put(attribute.getName(),attribute.getValue());
-        }
+//        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(fullHttpRequest);
+//        decoder.offer(fullHttpRequest);
+//        for (InterfaceHttpData data : decoder.getBodyHttpDatas()) {
+//            Attribute attribute = (Attribute) data;
+//            paramMap.put(attribute.getName(),attribute.getValue());
+//        }
+        fullHttpRequest.content();
         MessageRequest messageRequest = new MessageRequest(
                 IdGenerator.getIdByIncrement(),paramMap.get("interface"),paramMap.get("method"),paramMap.get("parameterTypesString"),paramMap.get("parameter")
                 );
@@ -61,8 +63,9 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                                     HttpResponseStatus.BAD_REQUEST)
                     );
                 } else {
-//                long time = (System.nanoTime() - response.getSendTime());
-//                com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService",time / 1000 ,response.getEndpoint(),response.getExecutingTask());
+                long time = (System.nanoTime() - response.getSendTime());
+//                    com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService",time / 1000,response.getExecutingTask());
+                com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService",time / 1000000 ,response.getEndpoint(),response.getExecutingTask());
                     writeResponse(fullHttpRequest,fullHttpRequest,channelHandlerContext, (Integer) response.getResultDesc());
                 }
             } catch (Exception e) {
@@ -95,14 +98,13 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         final Channel channel = channelHandlerContext.channel();
         MessageFuture<MessageResponse> future = new MessageFuture<>();
         Holder.putRequest(request.getMessageId(), future);
-        Endpoint endpoint = com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.findWeighted(serviceName);
+        Endpoint endpoint = com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.findByAdaptiveLB(serviceName);
         request.setEndpoint(endpoint);
-        String key = channel.eventLoop().toString() + endpoint.toString();
-        Channel nextChannel = channelMap.get(key);
+        Channel nextChannel = channelMap.get(endpoint);
         if (nextChannel == null) {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(channel.eventLoop())
-                    .channel(EpollSocketChannel.class)
+                    .channel(NioSocketChannel.class)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.TCP_NODELAY, true)
                     .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
@@ -126,7 +128,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         public void operationComplete(ChannelFuture channelFuture) throws Exception {
             if (channelFuture.isSuccess()) {
                 Channel channel = channelFuture.channel();
-                channelMap.put(channel.eventLoop().toString() + endpoint.toString(),channel);
+                channelMap.put(endpoint,channel);
                 channel.writeAndFlush(objects, channel.voidPromise());
             }
             else {

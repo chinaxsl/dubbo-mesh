@@ -16,28 +16,34 @@ import java.io.Serializable;
 public class MessageResponse implements Serializable {
     private String messageId;
     private Object resultDesc;
-    private Endpoint endpoint;
     private int executingTask;
     private long sendTime;
     private boolean isSuccess = true;
+    private Endpoint endpoint;
 
-    public MessageResponse(String messageId, Object resultDesc, Endpoint endpoint, int executingTask) {
+    public MessageResponse(String messageId, Object resultDesc, int executingTask) {
         this.messageId = messageId;
         this.resultDesc = resultDesc;
-        this.endpoint = endpoint;
         this.executingTask = executingTask;
         this.isSuccess = true;
     }
 
-    public MessageResponse(String messageId, Object resultDesc, Endpoint endpoint, int executingTask, boolean isSuccess) {
+    public MessageResponse(String messageId, Object resultDesc, int executingTask, boolean isSuccess) {
         this.messageId = messageId;
         this.resultDesc = resultDesc;
-        this.endpoint = endpoint;
         this.executingTask = executingTask;
         this.isSuccess = isSuccess;
     }
 
     public MessageResponse() {
+    }
+
+    public Endpoint getEndpoint() {
+        return endpoint;
+    }
+
+    public void setEndpoint(Endpoint endpoint) {
+        this.endpoint = endpoint;
     }
 
     public boolean isSuccess() {
@@ -64,9 +70,6 @@ public class MessageResponse implements Serializable {
         return resultDesc;
     }
 
-    public Endpoint getEndpoint() {
-        return endpoint;
-    }
 
     public long getSendTime() {
         return sendTime;

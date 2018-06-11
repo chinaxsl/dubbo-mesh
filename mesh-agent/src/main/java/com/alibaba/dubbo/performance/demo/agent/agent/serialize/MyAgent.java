@@ -24,8 +24,8 @@ public class MyAgent {
     //  表示各个provider的性能评估 参数越大性能越强
     private ThreadSafeArrayList<Double> efficiencyEstimator = new ThreadSafeArrayList<>(LENGTH);
 //    private double W;
-    private final double w = 0.3;
-    private final double n = 5;
+    private final double w = 0.05;
+    private final double n = 2;
     private final double g = 2;
     private ThreadSafeArrayList<Long> completedCount = new ThreadSafeArrayList<>();
     private ThreadSafeArrayList<Integer> executingTasks = new ThreadSafeArrayList<>();
@@ -35,9 +35,9 @@ public class MyAgent {
     private Map<String,Double> localWeight = new HashMap<>();
     public MyAgent(List<Endpoint> endpoints) {
         this.endpoints = endpoints;
-        localWeight.put("10.10.10.3",50000d);
-        localWeight.put("10.10.10.4",50000d);
-        localWeight.put("10.10.10.5",50000d);
+        localWeight.put("10.10.10.3",50d);
+        localWeight.put("10.10.10.4",50d);
+        localWeight.put("10.10.10.5",50d);
         init();
     }
 
@@ -59,7 +59,7 @@ public class MyAgent {
     public Endpoint randomChoiceByProbilities() {
         ThreadSafeArrayList<Double> pd = updatePd(n);
         double p = Math.random();
-        int len = pd.size();
+        int len = 3;
         for(int i=0;i<len;i++) {
             double currentP = pd.get(i);
             if (p <= currentP) {
@@ -87,7 +87,7 @@ public class MyAgent {
     private double getW(int position) {
         double W = 0;
         if (position < completedCount.size()) {
-            W = w + (1 - w) / completedCount.get(position);
+            W = w + (1 - w) / (completedCount.get(position) + 1);
         }
         return W;
     }
@@ -100,13 +100,13 @@ public class MyAgent {
             double totalCount = 0;
             int len = endpoints.size();
             for (int i=0;i<len;i++) {
-                double currentPd = Math.pow(efficiencyEstimator.get(i), -n) * Math.pow(executingTasks.get(i),-g);
+                double currentPd = Math.pow(efficiencyEstimator.get(i), -n);
                 pd.set(i,currentPd);
                 totalCount += currentPd;
             }
             for (int i=0;i<len;i++) {
                 pd.set(i, pd.get(i) / totalCount);
-                logger.info("current i=" + i + " value = " + pd.get(i) + " current tasks = " + executingTasks.get(i) + " total task = " + Holder.size());
+//                logger.info("current i=" + i + " value = " + pd.get(i) + " current tasks = " + executingTasks.get(i) + " total task = " + Holder.size());
             }
         } else {
             // 有provider完成的任务数为0
@@ -118,7 +118,7 @@ public class MyAgent {
                     if (!emptyList.contains(i)) {
                         double temp = efficiencyEstimator.get(i);
                         nonEmptyCount += temp;
-                        double b = Math.pow(temp, -n) * Math.pow(executingTasks.get(i),-g);
+                        double b = Math.pow(temp, -n);
                         totalCount += b;
                         pd.set(i, b);
                     }
@@ -127,10 +127,10 @@ public class MyAgent {
                 for (int i=0;i<emptyList.size();i++) {
                     double temp = Math.pow(nonEmptyCount,-n);
                     totalCount += temp;
-                    pd.set(i,temp);
+                    pd.set(emptyList.get(i),temp);
                 }
                 //归一化
-                for (int i=0;i<pd.size();i++) {
+                for (int i=0;i<pd.length();i++) {
                     pd.set(i,pd.get(i) / totalCount);
                 }
             } else {

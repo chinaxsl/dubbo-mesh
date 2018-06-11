@@ -34,13 +34,9 @@ public class DubboRpcEncoder extends MessageToByteEncoder{
         Request req = (Request)msg;
 
         // header.
-//        byte[] header = new byte[HEADER_LENGTH];
-        // set magic number.
-//        Bytes.short2bytes(MAGIC, header);
 
         // set request and serialization flag.
         byte reqFlag = (byte) (FLAG_REQUEST | 6);
-
         if (req.isTwoWay()) reqFlag |= FLAG_TWOWAY;
         if (req.isEvent()) reqFlag |= FLAG_EVENT;
 

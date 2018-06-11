@@ -42,9 +42,9 @@ public class LoadBalanceChoice {
         executingTask.put("10.10.10.4",2);
         executingTask.put("10.10.10.5",1);
 
-        localWeight.put("10.10.10.3",2);
-        localWeight.put("10.10.10.4",4);
-        localWeight.put("10.10.10.5",6);
+        localWeight.put("10.10.10.3",1);
+        localWeight.put("10.10.10.4",1);
+        localWeight.put("10.10.10.5",1);
         timeWeight.add(1);
         timeWeight.add(2);
         timeWeight.add(3);
@@ -65,16 +65,12 @@ public class LoadBalanceChoice {
 
     public static Endpoint findWeighted(String serviceName) throws Exception {
         checkEndpoint(serviceName);
-        if (requestCount.getAndIncrement() < IGNORE_COUNT) {
-            return roundChoice(endpoints);
-        }
         Endpoint point = chooseQueue.poll();
         if (point!=null) {
             return point;
         } else {
             ArrayList<Endpoint> newEndpoints = new ArrayList<>();
             ArrayList<TimeInfo> doubles = new ArrayList<>();
-            ArrayList<Endpoint> finalEndpoints = new ArrayList<>();
             for (Endpoint endpoint : endpoints) {
                 doubles.add(new TimeInfo(TimeCount.getAverage(endpoint),endpoint));
             }
@@ -88,10 +84,6 @@ public class LoadBalanceChoice {
                     newEndpoints.add(endpoint);
                 }
             }
-//            len =  endpoints.size();
-//            for (int i = 0; i < len; i++) {
-//                finalEndpoints.add(newEndpoints.get(random.nextInt(len)));
-//            }
             Collections.shuffle(newEndpoints);
             if (chooseQueue.isEmpty()) {
                 chooseQueue = new ConcurrentLinkedQueue<>(newEndpoints);

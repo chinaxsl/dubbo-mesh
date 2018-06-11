@@ -11,16 +11,7 @@ public class RpcRequestHolder {
     // key: requestId     value: RpcFuture
 //    private static ThreadLocal<HashMap<String,MessageFuture>> processingRpc = new ThreadLocal<>();
         private static ConcurrentHashMap<String,MessageFuture> processingRpc = new ConcurrentHashMap<>();
-//    public static void put(String requestId, MessageFuture future) {
-//        if (processingRpc.get() == null) {
-//            processingRpc.set(new HashMap<>());
-//        }
-//        processingRpc.get().put(requestId,future);
-//    }
-//
-//    public static MessageFuture remove(RpcResponse response) {
-//        return processingRpc.get().remove(response.getRequestId());
-//    }
+
     public static void put(String requestId,MessageFuture rpcFuture){
         processingRpc.put(requestId,rpcFuture);
     }
@@ -36,4 +27,6 @@ public class RpcRequestHolder {
     public static int size() {
         return processingRpc.size();
     }
+
+
 }

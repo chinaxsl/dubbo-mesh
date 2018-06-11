@@ -25,7 +25,7 @@ public class Holder {
     }
     public static void putRequest(String key, MessageFuture<MessageResponse> future) {
         requestMap.put(key,future);
-//        timeMap.put(key,System.nanoTime());
+        timeMap.put(key,System.nanoTime());
     }
     public static Long removeTime(String key) {
         return timeMap.remove(key);

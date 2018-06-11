@@ -8,6 +8,7 @@ import com.alibaba.dubbo.performance.demo.agent.dubbo.model.RpcRequestHolder;
 
 import com.alibaba.dubbo.performance.demo.agent.registry.IRegistry;
 import io.netty.channel.Channel;
+import io.netty.channel.EventLoop;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
@@ -16,10 +17,10 @@ import java.io.PrintWriter;
 public class RpcClient {
 //    private Logger logger = LoggerFactory.getLogger(RpcClient.class);
 
-    private ConnecManager connectManager;
+    private ConnecManager connectManager = new ConnecManager();
 
-    public RpcClient(IRegistry registry){
-        this.connectManager = new ConnecManager();
+    public RpcClient(){
+
     }
 
     public Object invoke(String interfaceName, String method, String parameterTypesString, String parameter) throws Exception {
