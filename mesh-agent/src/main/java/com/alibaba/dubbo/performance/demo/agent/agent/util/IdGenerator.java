@@ -18,7 +18,7 @@ public class IdGenerator {
         UUID uuid = UUID.randomUUID();
         return uuid.toString();
     }
-    public static String getIdByIncrement() {
-        return String.valueOf(count.getAndIncrement());
+    public static int getIdByIncrement() {
+        return count.getAndIncrement();
     }
 }

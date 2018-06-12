@@ -47,7 +47,7 @@ public class LoadBalanceChoice {
         localWeight.put("10.10.10.5",1);
         timeWeight.add(1);
         timeWeight.add(2);
-        timeWeight.add(3);
+        timeWeight.add(2);
 
     }
     private LoadBalanceChoice() {

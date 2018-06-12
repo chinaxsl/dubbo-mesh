@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class DubboRpcDecoder extends ByteToMessageDecoder {
     // header length
-    private Logger logger = LoggerFactory.getLogger(DubboRpcDecoder.class);
+//    private Logger logger = LoggerFactory.getLogger(DubboRpcDecoder.class);
     private static final ConcurrentHashMap<String,Integer> times = new ConcurrentHashMap<>();
     protected static final int HEADER_LENGTH = 16;
     protected static final byte FLAG_EVENT = (byte) 0x20;
@@ -72,7 +72,6 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
      * @return
      */
     private Object decode2(ChannelHandlerContext ctx,ByteBuf byteBuf) throws Exception {
-
 //        int savedReaderIndex = byteBuf.readerIndex();
         int readable = byteBuf.readableBytes();
 
@@ -92,7 +91,7 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
             ctx.executor().schedule(() -> {
                 RpcRequestHolder.put(id, future);
                 ctx.channel().writeAndFlush(future.getRequest());
-        },random.nextInt(1000 ), TimeUnit.MICROSECONDS);
+        },random.nextInt(800), TimeUnit.MICROSECONDS);
         } else {
             ByteBuf in = byteBuf.retainedSlice(byteBuf.readerIndex() + 1, len-2);
             ByteBufInputStream inputStream = new ByteBufInputStream(in,true);

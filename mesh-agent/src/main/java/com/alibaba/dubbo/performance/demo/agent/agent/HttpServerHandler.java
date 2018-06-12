@@ -7,9 +7,11 @@ import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageRequest;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageFuture;
 import com.alibaba.dubbo.performance.demo.agent.agent.util.IdGenerator;
+import com.alibaba.dubbo.performance.demo.agent.dubbo.model.Bytes;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import com.alibaba.dubbo.performance.demo.agent.registry.LoadBalanceChoice;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
@@ -22,7 +24,11 @@ import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
@@ -30,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.springframework.http.HttpHeaders.CONTENT_LENGTH;
 import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
+import static org.springframework.http.HttpHeaders.readOnlyHttpHeaders;
 
 /**
  * @program: TcpProject
@@ -38,21 +45,17 @@ import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
  * @create: 2018-05-18 20:33
  **/
 public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-//    private Logger logger = LoggerFactory.getLogger(HttpServerHandler.class);
+    private Logger logger = LoggerFactory.getLogger(HttpServerHandler.class);
     private static ConcurrentHashMap<Endpoint,Channel> channelMap = new ConcurrentHashMap<>();
-    private Map<String,String> paramMap = new HashMap<>();
+//    private MessageRequest[] messageRequests = new MessageRequest[2];
+//    private AtomicInteger count = new AtomicInteger(0);
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, FullHttpRequest fullHttpRequest) throws Exception {
-//        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(fullHttpRequest);
-//        decoder.offer(fullHttpRequest);
-//        for (InterfaceHttpData data : decoder.getBodyHttpDatas()) {
-//            Attribute attribute = (Attribute) data;
-//            paramMap.put(attribute.getName(),attribute.getValue());
-//        }
-        fullHttpRequest.content();
+        int id = IdGenerator.getIdByIncrement();
+        ByteBuf content = fullHttpRequest.content().retainedSlice();
         MessageRequest messageRequest = new MessageRequest(
-                IdGenerator.getIdByIncrement(),paramMap.get("interface"),paramMap.get("method"),paramMap.get("parameterTypesString"),paramMap.get("parameter")
-                );
+                String.valueOf(id),content
+        );
         MessageFuture<MessageResponse> future = sendRequest("com.alibaba.dubbo.performance.demo.provider.IHelloService",messageRequest,channelHandlerContext);
         Runnable runnable = () -> {
             try {
@@ -64,7 +67,6 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                     );
                 } else {
                 long time = (System.nanoTime() - response.getSendTime());
-//                    com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService",time / 1000,response.getExecutingTask());
                 com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService",time / 1000000 ,response.getEndpoint(),response.getExecutingTask());
                     writeResponse(fullHttpRequest,fullHttpRequest,channelHandlerContext, (Integer) response.getResultDesc());
                 }
@@ -79,32 +81,30 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         // executor为null 将交给channel的绑定的eventLoop执行
         future.addListener(runnable,channelHandlerContext.channel().eventLoop());
     }
-
-    private boolean writeResponse(HttpRequest request,HttpObject httpObject, ChannelHandlerContext ctx, int data) {
-        boolean keepAlive = HttpUtil.isKeepAlive(request);
+    private void writeResponse(HttpRequest request,HttpObject httpObject, ChannelHandlerContext ctx, int data) {
+//        boolean keepAlive = HttpUtil.isKeepAlive(request);
         FullHttpResponse response = new DefaultFullHttpResponse(
                 HttpVersion.HTTP_1_1,
                 httpObject.decoderResult().isSuccess()? HttpResponseStatus.OK : HttpResponseStatus.BAD_REQUEST,
                 Unpooled.copiedBuffer(String.valueOf(data).getBytes()));
-        if (keepAlive) {
+//        if (keepAlive) {
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
-        }
+//        }
         response.headers().add(CONTENT_TYPE,"application/json;charset=utf-8");
         response.headers().add(CONTENT_LENGTH,response.content().readableBytes());
         ctx.writeAndFlush(response,ctx.voidPromise());
-        return keepAlive;
+//        return keepAlive;
     }
-    private MessageFuture<MessageResponse> sendRequest(String serviceName, MessageRequest request, ChannelHandlerContext channelHandlerContext) throws Exception {
+    private MessageFuture<MessageResponse> sendRequest(String serviceName,MessageRequest request, ChannelHandlerContext channelHandlerContext) throws Exception {
         final Channel channel = channelHandlerContext.channel();
         MessageFuture<MessageResponse> future = new MessageFuture<>();
         Holder.putRequest(request.getMessageId(), future);
         Endpoint endpoint = com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.findByAdaptiveLB(serviceName);
-        request.setEndpoint(endpoint);
         Channel nextChannel = channelMap.get(endpoint);
         if (nextChannel == null) {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(channel.eventLoop())
-                    .channel(NioSocketChannel.class)
+                    .channel(EpollSocketChannel.class)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.TCP_NODELAY, true)
                     .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)

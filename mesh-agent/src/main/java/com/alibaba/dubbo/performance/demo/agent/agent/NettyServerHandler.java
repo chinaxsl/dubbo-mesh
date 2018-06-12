@@ -4,6 +4,7 @@ package com.alibaba.dubbo.performance.demo.agent.agent;/**
 
 
 
+import com.alibaba.dubbo.performance.demo.agent.agent.model.Invocation;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageRequest;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageFuture;
@@ -17,6 +18,7 @@ import com.alibaba.dubbo.performance.demo.agent.registry.IpHelper;
 import com.alibaba.fastjson.JSON;
 import com.sun.org.apache.regexp.internal.RE;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.epoll.EpollSocketChannel;
@@ -24,10 +26,13 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.*;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -56,6 +61,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
         Runnable callable = () -> {
             try {
                 int result = (int) future.get();
+//                logger.info("result = " + result);
                 MessageResponse response = new MessageResponse(messageRequest.getMessageId(),result,RpcRequestHolder.size());
                 channelHandlerContext.writeAndFlush(response,channelHandlerContext.voidPromise());
             } catch (Exception e) {
@@ -74,15 +80,15 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
     private MessageFuture invoke(ChannelHandlerContext channelHandlerContext,MessageRequest messageRequest) throws IOException {
         final Channel channel = channelHandlerContext.channel();
         RpcInvocation invocation = new RpcInvocation();
-        invocation.setMethodName(messageRequest.getMethod());
-        invocation.setAttachment("path", messageRequest.getInterfaceName());
-        invocation.setParameterTypes(messageRequest.getParameterTypesString());    // Dubbo内部用"Ljava/lang/String"来表示参数类型是String
+        Map<String,String> params = decode(messageRequest.getContent());
+        invocation.setMethodName(params.get("method"));
+        invocation.setAttachment("path", params.get("interface"));
+        invocation.setParameterTypes(params.get("parameterTypesString"));    // Dubbo内部用"Ljava/lang/String"来表示参数类型是String
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintWriter writer = new PrintWriter(new OutputStreamWriter(out));
-        JsonUtils.writeObject(messageRequest.getParameter(), writer);
+        JsonUtils.writeObject(params.get("parameter"), writer);
         invocation.setArguments(out.toByteArray());
-
         Request request = new Request();
         request.setVersion("2.0.0");
         request.setTwoWay(true);
@@ -94,7 +100,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
         if (nextChannel == null) {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(channel.eventLoop())
-                    .channel(NioSocketChannel.class)
+                    .channel(EpollSocketChannel.class)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.TCP_NODELAY, true)
                     .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
@@ -105,6 +111,30 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
             nextChannel.writeAndFlush(request,nextChannel.voidPromise());
         }
         return future;
+    }
+
+    private Map<String,String> decode(ByteBuf byteBuf) throws UnsupportedEncodingException {
+//        String request = (String) byteBuf.readCharSequence(byteBuf.readableBytes(), Charset.forName("UTF-8"));
+        byte[] data = new byte[byteBuf.readableBytes()];
+        byteBuf.readBytes(data);
+        String request = new String(data);
+        request = URLDecoder.decode(request,"UTF-8");
+        Map<String,String> paramsMap = new HashMap<>();
+        int splitPos = -1;
+        while(-1 != (splitPos = request.indexOf('&'))) {
+            String paramLine = request.substring(0, splitPos);
+            int equalIdx = paramLine.indexOf('=');
+            if(-1 != equalIdx) {
+                paramsMap.put(paramLine.substring(0, equalIdx), paramLine.substring(equalIdx + 1));
+            }
+            request = request.substring(splitPos + 1);
+        }
+        int equalIdx = request.indexOf('=');
+        if(-1 != equalIdx) {
+            paramsMap.put(request.substring(0, equalIdx), request.substring(equalIdx + 1));
+        }
+        byteBuf.release();
+        return paramsMap;
     }
 
     private static final class ListenerImpl implements ChannelFutureListener {

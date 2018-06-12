@@ -34,7 +34,7 @@ import static com.alibaba.dubbo.performance.demo.agent.agent.serialize.MessageEn
  * @create: 2018-05-18 16:11
  **/
 public class MessageDecoder extends ByteToMessageDecoder {
-    private Logger logger = LoggerFactory.getLogger(MessageDecoder.class);
+//    private Logger logger = LoggerFactory.getLogger(MessageDecoder.class);
     private static final int MAX_OBJECT_SIZE = 8192;
     private String id;
     private int executingTasks;
@@ -95,22 +95,13 @@ public class MessageDecoder extends ByteToMessageDecoder {
         }
         if ((status & 0x01) == REQUEST_FLAG) {
             int readerIndex = in.readerIndex();
-            ByteBuf byteBuf = in.slice(readerIndex,len);
+            ByteBuf byteBuf = in.copy(readerIndex,len);
             in.readerIndex(readerIndex + len);
-            ByteBufInputStream bufInputStream = new ByteBufInputStream(byteBuf);
-            Invocation invocation = null;
-            try {
-                invocation = (Invocation) kryoSerialize.deserialize(bufInputStream);
-//                invocation = JSON.parseObject(bufInputStream,Invocation.class);
-            } finally {
-                bufInputStream.close();
-            }
             MessageRequest request = new MessageRequest(
-                    id, invocation.getInterfaceName(), invocation.getMethod(),
-                    invocation.getParameterTypesString(), invocation.getParameter()
+                    id, byteBuf
             );
+//            ByteBuf request =
             return request;
-
         } else {
             int data = in.readInt();
             boolean flag = true;

@@ -24,11 +24,11 @@ public class MyAgent {
     //  表示各个provider的性能评估 参数越大性能越强
     private ThreadSafeArrayList<Double> efficiencyEstimator = new ThreadSafeArrayList<>(LENGTH);
 //    private double W;
-    private final double w = 0.05;
+    private final double w = 0.1;
     private final double n = 2;
     private final double g = 2;
     private ThreadSafeArrayList<Long> completedCount = new ThreadSafeArrayList<>();
-    private ThreadSafeArrayList<Integer> executingTasks = new ThreadSafeArrayList<>();
+//    private ThreadSafeArrayList<Integer> executingTasks = new ThreadSafeArrayList<>();
     private ThreadSafeArrayList<Double> pd = new ThreadSafeArrayList<>(LENGTH);
     private final List<Endpoint> endpoints;
     private AtomicBoolean isHaveEmpty = new AtomicBoolean(true);
@@ -46,7 +46,7 @@ public class MyAgent {
             efficiencyEstimator.add(localWeight.get(endpoints.get(i).getHost()));
             completedCount.add(0l);
             pd.add(0.0);
-            executingTasks.add(0);
+//            executingTasks.add(0);
         }
     }
 
@@ -54,7 +54,7 @@ public class MyAgent {
         int pos = endpoints.indexOf(endpoint);
         completedCount.set(pos,completedCount.get(pos)+1);
         updateEstimator(getW(pos),interval,pos);
-        executingTasks.set(pos,executingCount + 1);
+//        executingTasks.set(pos,executingCount + 1);
     }
     public Endpoint randomChoiceByProbilities() {
         ThreadSafeArrayList<Double> pd = updatePd(n);

@@ -11,12 +11,15 @@ import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 public class DubboRpcEncoder extends MessageToByteEncoder{
+    private Logger logger = LoggerFactory.getLogger(DubboRpcEncoder.class);
     // header length.
     protected static final int HEADER_LENGTH = 16;
     // magic header.
@@ -34,7 +37,6 @@ public class DubboRpcEncoder extends MessageToByteEncoder{
         Request req = (Request)msg;
 
         // header.
-
         // set request and serialization flag.
         byte reqFlag = (byte) (FLAG_REQUEST | 6);
         if (req.isTwoWay()) reqFlag |= FLAG_TWOWAY;
@@ -70,4 +72,8 @@ public class DubboRpcEncoder extends MessageToByteEncoder{
         JsonUtils.writeObject(inv.getAttachments(), writer);
     }
 
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        cause.printStackTrace();
+    }
 }

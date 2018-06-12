@@ -12,6 +12,7 @@ import com.alibaba.fastjson.JSON;
 import com.esotericsoftware.kryo.pool.KryoPool;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 import org.apache.log4j.or.jms.MessageRenderer;
@@ -54,36 +55,26 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
             encodeRequest(byteBuf, (MessageRequest) object);
         } else {
             encodeResponse(byteBuf, (MessageResponse) object);
+            int endIndex = byteBuf.writerIndex();
+            //写入长度
+            byteBuf.setInt(startIndex + HEADER_LENGTH - 4 ,endIndex-startIndex-HEADER_LENGTH);
         }
-        int endIndex = byteBuf.writerIndex();
-        //写入长度
-        byteBuf.setInt(startIndex + HEADER_LENGTH - 4 ,endIndex-startIndex-HEADER_LENGTH);
     }
-
     private void encodeRequest(ByteBuf out, MessageRequest request) throws IOException {
-        ByteBufOutputStream bufOutputStream = new ByteBufOutputStream(out);
-        try {
-
-            //为数据长度预留位置
-            bufOutputStream.writeByte(REQUEST_FLAG);
-            bufOutputStream.writeByte(0);
-            // id 头部 0 - 3   4个字节
-            bufOutputStream.writeInt(Integer.valueOf(request.getMessageId()));
-            // 请求类型 8.1 1个比特  返回状态 8.2 - 8.8 7个比特  待返回的请求数  9 1个字节
-            // 发送的网络ip地址 10 - 11 4个字节 网络端口 12 - 13 4个字节
-            bufOutputStream.write(LENGTH_PLACEHOLDER);
-            Invocation invocation = new Invocation(
-                    request.getInterfaceName(),
-                    request.getMethod(),
-                    request.getParameterTypesString(),
-                    request.getParameter()
-            );
-//            bufOutputStream.write(JSON.toJSONBytes(invocation));
-            kryoSerialize.serialize(bufOutputStream,invocation);
-        } finally {
-            bufOutputStream.close();
-        }
-
+//             try {
+                 out.writeByte(REQUEST_FLAG);
+                 out.writeByte(0);
+                 // id 头部 0 - 3   4个字节
+                 out.writeInt(Integer.valueOf(request.getMessageId()));
+                 // 请求类型 8.1 1个比特  返回状态 8.2 - 8.8 7个比特  待返回的请求数  9 1个字节
+                 // 发送的网络ip地址 10 - 11 4个字节 网络端口 12 - 13 4个字节
+                 out.writeInt(request.getContent().readableBytes());
+                 out.writeBytes(request.getContent());
+                 request.getContent().release();
+                 //为数据长度预留位置
+//             } finally {
+//                byteBuf.release();
+//             }
 
     }
 
@@ -112,5 +103,10 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
         } finally {
             bufOutputStream.close();
         }
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        cause.printStackTrace();
     }
 }

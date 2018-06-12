@@ -18,6 +18,7 @@ package com.alibaba.dubbo.performance.demo.agent.dubbo.model;
 
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -93,5 +94,15 @@ public class RpcInvocation implements Serializable {
 
     public Map<String, String> getAttachments() {
         return attachments;
+    }
+
+    @Override
+    public String toString() {
+        return "RpcInvocation{" +
+                "methodName='" + methodName + '\'' +
+                ", parameterTypes='" + parameterTypes + '\'' +
+                ", arguments=" + Arrays.toString(arguments) +
+                ", attachments=" + attachments +
+                '}';
     }
 }

@@ -3,6 +3,7 @@ package com.alibaba.dubbo.performance.demo.agent.agent.model;/**
  */
 
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
+import io.netty.buffer.ByteBuf;
 
 import java.io.Serializable;
 
@@ -15,35 +16,33 @@ import java.io.Serializable;
 
 public class MessageRequest implements Serializable{
     private String messageId;
-    private String interfaceName;
-    private String method;
-    private String parameterTypesString;
-    private String parameter;
+    private ByteBuf content;
     private Endpoint endpoint;
     private int executingTask;
 //    private long sendTime = System.nanoTime();
-    public MessageRequest() {
-    }
 
-    public MessageRequest(String messageId, String interfaceName, String method, String parameterTypesString, String parameter,Endpoint endpoint) {
+    public MessageRequest(String messageId, ByteBuf content) {
         this.messageId = messageId;
-        this.interfaceName = interfaceName;
-        this.method = method;
-        this.parameterTypesString = parameterTypesString;
-        this.parameter = parameter;
-        this.endpoint = endpoint;
-        this.executingTask = 0;
-    }
-
-    public MessageRequest(String messageId, String interfaceName, String method, String parameterTypesString, String parameter) {
-        this.messageId = messageId;
-        this.interfaceName = interfaceName;
-        this.method = method;
-        this.parameterTypesString = parameterTypesString;
-        this.parameter = parameter;
+        this.content = content;
         this.endpoint = Endpoint.emptyEndpoint();
         this.executingTask = 0;
-}
+    }
+
+    public String getMessageId() {
+        return messageId;
+    }
+
+    public ByteBuf getContent() {
+        return content;
+    }
+
+    public void setContent(ByteBuf content) {
+        this.content = content;
+    }
+
+    public Endpoint getEndpoint() {
+        return endpoint;
+    }
 
     public void setEndpoint(Endpoint endpoint) {
         this.endpoint = endpoint;
@@ -53,38 +52,7 @@ public class MessageRequest implements Serializable{
         return executingTask;
     }
 
-    public String getMessageId() {
-        return messageId;
-    }
-
-    public String getInterfaceName() {
-        return interfaceName;
-    }
-
-    public String getMethod() {
-        return method;
-    }
-
-    public String getParameterTypesString() {
-        return parameterTypesString;
-    }
-
-    public String getParameter() {
-        return parameter;
-    }
-
-    public Endpoint getEndpoint() {
-        return endpoint;
-    }
-
-    @Override
-    public String toString() {
-        return "MessageRequest{" +
-                "messageId='" + messageId + '\'' +
-                ", interfaceName='" + interfaceName + '\'' +
-                ", method='" + method + '\'' +
-                ", parameterTypesString='" + parameterTypesString + '\'' +
-                ", parameter='" + parameter + '\'' +
-                '}';
+    public void setExecutingTask(int executingTask) {
+        this.executingTask = executingTask;
     }
 }

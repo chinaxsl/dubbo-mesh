@@ -29,12 +29,12 @@ public class NettyTcpServer {
     public void bind(int port) throws Exception {
         InvokeService.init();
         //  默认线程数 为 2 * cpu个数
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        EventLoopGroup bossGroup = new EpollEventLoopGroup(1);
+        EventLoopGroup workerGroup = new EpollEventLoopGroup();
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(bossGroup,workerGroup)
-                    .channel(NioServerSocketChannel.class)
+                    .channel(EpollServerSocketChannel.class)
                     // boss线程处理客户端连接时等待队列的大小
                     .option(ChannelOption.SO_BACKLOG,1028)
                     // bossGroup 的bytebuf 使用直接内存，在高并发下可以提高io性能
