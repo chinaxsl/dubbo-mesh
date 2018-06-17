@@ -1,4 +1,4 @@
-package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
+package com.alibaba.dubbo.performance.demo.agent.agent.balance;/**
  * Created by msi- on 2018/5/6.
  */
 
@@ -36,7 +36,7 @@ public class LoadBalanceChoice {
     private static List<Integer> timeWeight = new ArrayList<>();
     private static ConcurrentLinkedQueue queue = new ConcurrentLinkedQueue();
     private static ConcurrentHashMap<String,Integer> executingTask = new ConcurrentHashMap<>();
-    private static MyAgent agentStrategy;
+    private static AdaptiveLB agentStrategy;
     static {
         executingTask.put("10.10.10.3",3);
         executingTask.put("10.10.10.4",2);
@@ -63,34 +63,6 @@ public class LoadBalanceChoice {
         return LoadBalanceChoice.roundChoice(endpoints);
     }
 
-    public static Endpoint findWeighted(String serviceName) throws Exception {
-        checkEndpoint(serviceName);
-        Endpoint point = chooseQueue.poll();
-        if (point!=null) {
-            return point;
-        } else {
-            ArrayList<Endpoint> newEndpoints = new ArrayList<>();
-            ArrayList<TimeInfo> doubles = new ArrayList<>();
-            for (Endpoint endpoint : endpoints) {
-                doubles.add(new TimeInfo(TimeCount.getAverage(endpoint),endpoint));
-            }
-//            Collections.sort(doubles);
-//            logger.info(doubles.toString());
-            int len = doubles.size();
-            for (int i = 0; i < len; i++) {
-                Endpoint endpoint = doubles.get(i).getEndpoint();
-                int length = localWeight.get(endpoint.getHost()) + timeWeight.get(i);
-                for(int j = 0 ; j < length;j++) {
-                    newEndpoints.add(endpoint);
-                }
-            }
-            Collections.shuffle(newEndpoints);
-            if (chooseQueue.isEmpty()) {
-                chooseQueue = new ConcurrentLinkedQueue<>(newEndpoints);
-            }
-            return chooseQueue.poll();
-        }
-    }
 
     public static Endpoint weightedChoice(List<Endpoint> endpointList) {
         if (null == endpoints) {
@@ -132,9 +104,8 @@ public class LoadBalanceChoice {
         checkEndpoint(serviceName);
         checkAgentStrategy();
         agentStrategy.complete(endpoint,interval,count);
-
     }
-
+    // 基于动态响应时间实现负债均衡
     public static Endpoint findByAdaptiveLB(String serviceName) throws Exception {
         checkEndpoint(serviceName);
         checkAgentStrategy();
@@ -183,7 +154,7 @@ public class LoadBalanceChoice {
         if (null == agentStrategy) {
             synchronized (lock) {
                 if (null == agentStrategy) {
-                    agentStrategy = new MyAgent(endpoints);
+                    agentStrategy = new AdaptiveLB(endpoints);
                 }
             }
         }

@@ -2,7 +2,7 @@ package com.alibaba.dubbo.performance.demo.agent.agent;/**
  * Created by msi- on 2018/5/16.
  */
 
-import com.alibaba.dubbo.performance.demo.agent.agent.serialize.*;
+import com.alibaba.dubbo.performance.demo.agent.agent.balance.*;
 import com.alibaba.dubbo.performance.demo.agent.registry.EtcdRegistry;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -12,10 +12,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
 
 /**
  * @program: TcpProject
@@ -24,10 +21,9 @@ import io.netty.channel.socket.nio.NioSocketChannel;
  * @create: 2018-05-16 20:18
  **/
 
-public class NettyTcpServer {
+public class ProviderAgent {
     private static EtcdRegistry registry = new EtcdRegistry(System.getProperty("etcd.url"));
     public void bind(int port) throws Exception {
-        InvokeService.init();
         //  默认线程数 为 2 * cpu个数
         EventLoopGroup bossGroup = new EpollEventLoopGroup(1);
         EventLoopGroup workerGroup = new EpollEventLoopGroup();
@@ -72,7 +68,7 @@ public class NettyTcpServer {
             SocketChannel.pipeline()
                     .addLast(new MessageEncoder())
                     .addLast(new MessageDecoder())
-                    .addLast(new NettyServerHandler());
+                    .addLast(new ProviderAgentHandler());
         }
     }
 }

@@ -33,7 +33,6 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
     int status;
     long requestId;
     int len;
-    private int result;
     private Random random = new Random();
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list) throws IOException {
@@ -91,20 +90,14 @@ public class DubboRpcDecoder extends ByteToMessageDecoder {
             ctx.executor().schedule(() -> {
                 RpcRequestHolder.put(id, future);
                 ctx.channel().writeAndFlush(future.getRequest());
-        },random.nextInt(800), TimeUnit.MICROSECONDS);
+        },random.nextInt(1000), TimeUnit.MICROSECONDS);
         } else {
-            ByteBuf in = byteBuf.retainedSlice(byteBuf.readerIndex() + 1, len-2);
-            ByteBufInputStream inputStream = new ByteBufInputStream(in,true);
-            byteBuf.skipBytes(len);
-            try {
-                result = JSON.parseObject(inputStream,Integer.class);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                inputStream.close();
-            }
+            byteBuf.skipBytes(1);
+            byte[] data = new byte[len-2];
+            byteBuf.readBytes(data);
+            byteBuf.skipBytes(1);
             if (future != null) {
-                future.done(result);
+                future.done(data);
             }
         }
         return null;

@@ -1,12 +1,10 @@
-package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
+package com.alibaba.dubbo.performance.demo.agent.agent.balance;/**
  * Created by msi- on 2018/5/30.
  */
 
-import com.alibaba.dubbo.performance.demo.agent.agent.model.Holder;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.dc.pr.PRError;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,13 +16,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @create: 2018-05-30 23:19
  **/
 //线程安全实现multi-agent adaptive load balancing算法
-public class MyAgent {
-    private Logger logger = LoggerFactory.getLogger(MyAgent.class);
+public class AdaptiveLB {
+    private Logger logger = LoggerFactory.getLogger(AdaptiveLB.class);
     private static final int LENGTH = 3;
     //  表示各个provider的性能评估 参数越大性能越强
     private ThreadSafeArrayList<Double> efficiencyEstimator = new ThreadSafeArrayList<>(LENGTH);
 //    private double W;
-    private final double w = 0.1;
+    private final double w = 0.05;
     private final double n = 2;
     private final double g = 2;
     private ThreadSafeArrayList<Long> completedCount = new ThreadSafeArrayList<>();
@@ -33,7 +31,7 @@ public class MyAgent {
     private final List<Endpoint> endpoints;
     private AtomicBoolean isHaveEmpty = new AtomicBoolean(true);
     private Map<String,Double> localWeight = new HashMap<>();
-    public MyAgent(List<Endpoint> endpoints) {
+    public AdaptiveLB(List<Endpoint> endpoints) {
         this.endpoints = endpoints;
         localWeight.put("10.10.10.3",50d);
         localWeight.put("10.10.10.4",50d);

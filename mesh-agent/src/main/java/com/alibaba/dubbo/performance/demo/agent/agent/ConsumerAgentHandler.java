@@ -2,41 +2,32 @@ package com.alibaba.dubbo.performance.demo.agent.agent;/**
  * Created by msi- on 2018/5/18.
  */
 
+import com.alibaba.dubbo.performance.demo.agent.agent.balance.LoadBalanceChoice;
+import com.alibaba.dubbo.performance.demo.agent.agent.balance.MessageDecoder;
+import com.alibaba.dubbo.performance.demo.agent.agent.balance.MessageEncoder;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.Holder;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageRequest;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageFuture;
 import com.alibaba.dubbo.performance.demo.agent.agent.util.IdGenerator;
-import com.alibaba.dubbo.performance.demo.agent.dubbo.model.Bytes;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
-import com.alibaba.dubbo.performance.demo.agent.registry.LoadBalanceChoice;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.*;
-import io.netty.handler.codec.http.multipart.Attribute;
-import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
-import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.LongAdder;
 
 import static org.springframework.http.HttpHeaders.CONTENT_LENGTH;
 import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
-import static org.springframework.http.HttpHeaders.readOnlyHttpHeaders;
 
 /**
  * @program: TcpProject
@@ -44,11 +35,11 @@ import static org.springframework.http.HttpHeaders.readOnlyHttpHeaders;
  * @author: XSL
  * @create: 2018-05-18 20:33
  **/
-public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private Logger logger = LoggerFactory.getLogger(HttpServerHandler.class);
+public class ConsumerAgentHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+    private Logger logger = LoggerFactory.getLogger(ConsumerAgentHandler.class);
     private static ConcurrentHashMap<Endpoint,Channel> channelMap = new ConcurrentHashMap<>();
-//    private MessageRequest[] messageRequests = new MessageRequest[2];
-//    private AtomicInteger count = new AtomicInteger(0);
+    private static ConcurrentHashMap<Endpoint, ConcurrentLinkedQueue<MessageRequest>> requestMap = new ConcurrentHashMap();
+    private static LongAdder count = new LongAdder();
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, FullHttpRequest fullHttpRequest) throws Exception {
         int id = IdGenerator.getIdByIncrement();
@@ -60,16 +51,9 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         Runnable runnable = () -> {
             try {
                 MessageResponse response = future.get();
-                if (!response.isSuccess()) {
-                    channelHandlerContext.writeAndFlush(new DefaultFullHttpResponse(
-                                    HttpVersion.HTTP_1_1,
-                                    HttpResponseStatus.BAD_REQUEST)
-                    );
-                } else {
                 long time = (System.nanoTime() - response.getSendTime());
-                com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService",time / 1000000 ,response.getEndpoint(),response.getExecutingTask());
-                    writeResponse(fullHttpRequest,fullHttpRequest,channelHandlerContext, (Integer) response.getResultDesc());
-                }
+                com.alibaba.dubbo.performance.demo.agent.agent.balance.LoadBalanceChoice.addTime("com.alibaba.dubbo.performance.demo.provider.IHelloService",time / 1000000 ,response.getEndpoint(),response.getExecutingTask());
+                writeResponse(fullHttpRequest,channelHandlerContext, (byte[]) response.getResultDesc());
             } catch (Exception e) {
                 FullHttpResponse response = new DefaultFullHttpResponse(
                         HttpVersion.HTTP_1_1,HttpResponseStatus.BAD_REQUEST
@@ -81,12 +65,12 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         // executor为null 将交给channel的绑定的eventLoop执行
         future.addListener(runnable,channelHandlerContext.channel().eventLoop());
     }
-    private void writeResponse(HttpRequest request,HttpObject httpObject, ChannelHandlerContext ctx, int data) {
+    private void writeResponse(HttpObject httpObject, ChannelHandlerContext ctx, byte[] data) {
 //        boolean keepAlive = HttpUtil.isKeepAlive(request);
         FullHttpResponse response = new DefaultFullHttpResponse(
                 HttpVersion.HTTP_1_1,
                 httpObject.decoderResult().isSuccess()? HttpResponseStatus.OK : HttpResponseStatus.BAD_REQUEST,
-                Unpooled.copiedBuffer(String.valueOf(data).getBytes()));
+                Unpooled.wrappedBuffer(data));
 //        if (keepAlive) {
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
 //        }
@@ -99,7 +83,8 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         final Channel channel = channelHandlerContext.channel();
         MessageFuture<MessageResponse> future = new MessageFuture<>();
         Holder.putRequest(request.getMessageId(), future);
-        Endpoint endpoint = com.alibaba.dubbo.performance.demo.agent.agent.serialize.LoadBalanceChoice.findByAdaptiveLB(serviceName);
+        //负载均衡
+        Endpoint endpoint = LoadBalanceChoice.findByAdaptiveLB(serviceName);
         Channel nextChannel = channelMap.get(endpoint);
         if (nextChannel == null) {
             Bootstrap bootstrap = new Bootstrap();
@@ -111,8 +96,21 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
                     .handler(new NettyClientInitializer());
             ChannelFuture channelFuture = bootstrap.connect(endpoint.getHost(),endpoint.getPort());
             channelFuture.addListener(new ListenerImpl(request,endpoint));
+            requestMap.put(endpoint, new ConcurrentLinkedQueue());
         } else {
-            nextChannel.writeAndFlush(request, nextChannel.voidPromise());
+            ConcurrentLinkedQueue<MessageRequest> queue = requestMap.get(endpoint);
+            if(count.intValue() < 5) {
+                queue.add(request);
+                count.increment();
+            } else {
+                nextChannel.eventLoop().execute(() -> {
+                    for(MessageRequest firstRequest = queue.poll(); firstRequest != null; firstRequest = (MessageRequest)queue.poll()) {
+                        nextChannel.write(firstRequest, nextChannel.voidPromise());
+                    }
+                    count.reset();
+                    nextChannel.writeAndFlush(request, nextChannel.voidPromise());
+                });
+            }
         }
         return future;
     }
@@ -140,5 +138,25 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         cause.printStackTrace();
         ctx.close();
+    }
+
+    /**
+     * @program: dubbo-mesh
+     * @description:
+     * @author: XSL
+     * @create: 2018-05-27 21:49
+     **/
+
+    public static class NettyClientInitializer extends ChannelInitializer<SocketChannel> {
+        @Override
+        protected void initChannel(SocketChannel socketChannel) throws Exception {
+            socketChannel.pipeline()
+                    .addLast(new MessageEncoder())
+                    .addLast(new MessageDecoder());
+    //                ProtostuffCodeUtil util = ProtostuffCodeUtil.getClientCodeUtil();
+    //                socketChannel.pipeline().addLast(new ProtostuffEncoder(util))
+    //                        .addLast(new ProtostuffDecoder(util))
+    //                        .addLast(new NettyClientHandler());
+        }
     }
 }

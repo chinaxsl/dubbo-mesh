@@ -1,17 +1,10 @@
-package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
+package com.alibaba.dubbo.performance.demo.agent.agent.balance;/**
  * Created by msi- on 2018/5/29.
  */
 
-import com.google.common.util.concurrent.AtomicDouble;
-import com.google.common.util.concurrent.AtomicDoubleArray;
-
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
  * @program: dubbo-mesh

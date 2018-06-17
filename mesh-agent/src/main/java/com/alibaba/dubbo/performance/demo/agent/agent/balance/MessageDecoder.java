@@ -1,30 +1,19 @@
-package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
+package com.alibaba.dubbo.performance.demo.agent.agent.balance;/**
  * Created by msi- on 2018/5/18.
  */
 
 import com.alibaba.dubbo.performance.demo.agent.agent.model.*;
-import com.alibaba.dubbo.performance.demo.agent.agent.util.Common;
-import com.alibaba.dubbo.performance.demo.agent.dubbo.DubboRpcDecoder;
 import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
-import com.alibaba.fastjson.JSON;
-import com.esotericsoftware.kryo.pool.KryoPool;
-import com.sun.org.apache.regexp.internal.RE;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.serialization.ObjectDecoder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 
-import static com.alibaba.dubbo.performance.demo.agent.agent.serialize.MessageEncoder.HEADER_LENGTH;
-import static com.alibaba.dubbo.performance.demo.agent.agent.serialize.MessageEncoder.REQUEST_FLAG;
+import static com.alibaba.dubbo.performance.demo.agent.agent.balance.MessageEncoder.HEADER_LENGTH;
+import static com.alibaba.dubbo.performance.demo.agent.agent.balance.MessageEncoder.REQUEST_FLAG;
 
 
 /**
@@ -40,7 +29,6 @@ public class MessageDecoder extends ByteToMessageDecoder {
     private int executingTasks;
     private int status;
     private int len;
-    private KryoSerialize kryoSerialize;
 
     private static HashMap<Integer,Endpoint> endpointHashMap = new HashMap<>();
     static {
@@ -49,7 +37,6 @@ public class MessageDecoder extends ByteToMessageDecoder {
         endpointHashMap.put(3,new Endpoint("10.10.10.5",30000));
     }
     public MessageDecoder() {
-        this.kryoSerialize = new KryoSerialize(KryoPoolFactory.getKryoPoolInstance());
     }
     enum DecodeResult {
         NEED_MORE_INPUT, SKIP_INPUT
@@ -100,10 +87,10 @@ public class MessageDecoder extends ByteToMessageDecoder {
             MessageRequest request = new MessageRequest(
                     id, byteBuf
             );
-//            ByteBuf request =
             return request;
         } else {
-            int data = in.readInt();
+            byte[] data = new byte[len];
+            in.readBytes(data);
             boolean flag = true;
             if ((status & 0x80) != 0x00) {
                 flag = false;

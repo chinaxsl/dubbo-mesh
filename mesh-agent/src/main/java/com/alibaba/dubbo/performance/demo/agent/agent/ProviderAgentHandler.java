@@ -42,8 +42,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @create: 2018-05-16 20:29
  **/
 
-public class NettyServerHandler extends SimpleChannelInboundHandler<MessageRequest> {
-//    private Logger logger = LoggerFactory.getLogger(NettyServerHandler.class);
+public class ProviderAgentHandler extends SimpleChannelInboundHandler<MessageRequest> {
+//    private Logger logger = LoggerFactory.getLogger(ProviderAgentHandler.class);
     private static final String HOST = "127.0.0.1";
     private static final int PORT = Integer.valueOf(System.getProperty("dubbo.protocol.port"));
     private static ConcurrentHashMap<EventLoop,Channel> concurrentHashMap = new ConcurrentHashMap<>();
@@ -60,12 +60,13 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
         MessageFuture future = invoke(channelHandlerContext,messageRequest);
         Runnable callable = () -> {
             try {
-                int result = (int) future.get();
+                int result = JSON.parseObject((byte[]) future.get(),Integer.class);
+                byte[] data = String.valueOf(result).getBytes();
 //                logger.info("result = " + result);
-                MessageResponse response = new MessageResponse(messageRequest.getMessageId(),result,RpcRequestHolder.size());
+                MessageResponse response = new MessageResponse(messageRequest.getMessageId(),data,RpcRequestHolder.size());
                 channelHandlerContext.writeAndFlush(response,channelHandlerContext.voidPromise());
             } catch (Exception e) {
-                channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),-1,RpcRequestHolder.size(),false));
+                channelHandlerContext.writeAndFlush(new MessageResponse(messageRequest.getMessageId(),"-1".getBytes(),RpcRequestHolder.size(),false));
                 e.printStackTrace();
             }
         };
@@ -114,10 +115,8 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<MessageReque
     }
 
     private Map<String,String> decode(ByteBuf byteBuf) throws UnsupportedEncodingException {
-//        String request = (String) byteBuf.readCharSequence(byteBuf.readableBytes(), Charset.forName("UTF-8"));
-        byte[] data = new byte[byteBuf.readableBytes()];
-        byteBuf.readBytes(data);
-        String request = new String(data);
+        String request = (String) byteBuf.readCharSequence(byteBuf.readableBytes(),Charset.forName("UTF-8"));
+//        String request = new String(data);
         request = URLDecoder.decode(request,"UTF-8");
         Map<String,String> paramsMap = new HashMap<>();
         int splitPos = -1;

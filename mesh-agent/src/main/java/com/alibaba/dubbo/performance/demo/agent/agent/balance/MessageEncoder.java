@@ -1,23 +1,14 @@
-package com.alibaba.dubbo.performance.demo.agent.agent.serialize;/**
+package com.alibaba.dubbo.performance.demo.agent.agent.balance;/**
  * Created by msi- on 2018/5/18.
  */
 
-import com.alibaba.dubbo.performance.demo.agent.agent.model.Invocation;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageRequest;
 import com.alibaba.dubbo.performance.demo.agent.agent.model.MessageResponse;
-import com.alibaba.dubbo.performance.demo.agent.agent.util.Common;
-import com.alibaba.dubbo.performance.demo.agent.registry.Endpoint;
 import com.alibaba.dubbo.performance.demo.agent.registry.IpHelper;
-import com.alibaba.fastjson.JSON;
-import com.esotericsoftware.kryo.pool.KryoPool;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
-import org.apache.log4j.or.jms.MessageRenderer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -36,10 +27,8 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
     public static final int REQUEST_FLAG = 0x00;
     public static final int RESPONSE_FLAG= 0x01;
     public static final int HEADER_LENGTH = 10;
-    private KryoSerialize kryoSerialize;
     private static int ENDPOINT_FLAG;
     public MessageEncoder() {
-        this.kryoSerialize = new KryoSerialize(KryoPoolFactory.getKryoPoolInstance());
     }
     private static HashMap<String,Integer> endpointHashMap = new HashMap<>();
     static {
@@ -97,7 +86,7 @@ public class MessageEncoder extends MessageToByteEncoder<Object> {
             // 发送的网络ip地址 10 - 11 4个字节 网络端口 12 - 13 4个字节
             // 数据体长度 头部 4 - 7  4个字节
             bufOutputStream.write(LENGTH_PLACEHOLDER);
-            bufOutputStream.writeInt((Integer) response.getResultDesc());
+            bufOutputStream.write((byte[]) response.getResultDesc());
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
